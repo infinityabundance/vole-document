@@ -349,6 +349,28 @@ declines / detector-precedence choices with reasons
 precedence, cbor/eml/pptx conservatism, a Word 6.0 FIB, and a fragmented root mini
 stream. The legacy models remain bounded and the economic corpora are self-authored.
 
+## Phase-28 outcomes (execution, physical selectivity, revision reuse)
+
+Phase 28 is the **performance programme**: finish detection, repair the competitor
+envelope, and run the three decision experiments before any expensive rewrite.
+Plan: [phase-28-plan.md](../phases/phase-28-plan.md); results:
+[phase-28-results.md](../phases/phase-28-results.md).
+
+| Item | Question | Outcome |
+|---|---|---|
+| 28.1 Detection completion | Convert the remaining stratified-v2 findings where the precedence is genuinely wrong. | **Complete — shipped.** Findings **21 → 15** (6 fixed), agreements **268 → 274**, **308/308 byte-exact**: fragmented root-mini-stream `.doc` (CFBF model v2 `mini_chain`), Spark/Proxifier/BSD-without-`<PRI>` log dialects, an `xref:`-only AsciiDoc navigation list, a top-level CBOR tag. Trajectory **32 → 25 → 21 → 15**. `2026-10-12-realformats-stratified-v2-941e3d0f` |
+| 28.2 Competitor envelope | Give the comparator the real data and separate steady-state from cold. | **Complete — repaired.** DuckDB reads **real Arrow** (C data interface), not a Parquet projection; in-process **steady-state** headline with **cold-process**/**cold-cache** split. VOLE **loses every steady-state analytical axis** (Arrow **2.25×** DuckDB / **27.4×** pyarrow; Parquet **1.46×** DuckDB) but **wins build** and **storage vs SQLite**; exactness 3/3 · 7/7. `2026-10-12-phase28-2-{arrow,parquet}-econ-f7e0a961` |
+| 28.3 Hot-path profiling | Attribute the hot path; is the `serve_source_range` clone worth removing? | **Complete — recorded NEGATIVE (28.4 ships nothing).** Paired ablation: median **0.9999**, geomean **1.0040** (CIs span 1.0); the whole `serve_source_range` call is a median **0.09%** of wall — far below the MDE. Selection-before-materialization copies the **same bytes**. Dominant cost is derived-model decode. Exactness 21/21. `2026-10-12-phase28-3-profile-af713225` |
+| 28.5 Experiment 1 Fused kernel | Does a native single-column Arrow predicate/aggregate kernel beat the shipped path, and where does it stand vs pyarrow/DuckDB? | **RESOLVED POSITIVE.** fused/current-inprocess median **0.0253** (MDE 0.0302) → resolved faster; vs DuckDB **0.0077** (**~30× faster**, reversing 28.2's 2.25× loss); vs pyarrow **loses on the aggregate** (geomean **1.99**; large fixture **6.46×**), near-tie on evidence (1.03). Exactness 3/3. Semantic finding: `observe --kind text` parses integers only (0 for non-integral floats). `2026-10-12-phase28-5-fused-arrow-e41a78fe` |
+| 28.6 Experiment 2 Fragment locality | Is the current closure too broad for a narrow request, and is a fragment directory worth it? | **Decision — coarse structural index justified.** The closure is the **whole encoded document**; floor+dir is **42×–435×** smaller (5/5) but beats page-SQLite in only **3/5** formats (PDF/DOCX, marginal Parquet; loses CSV/JSON). A per-record index is **not viable** (CSV/native 23.5 MB > source). Exactness 5/5. Historical control Phase 22.5 **3.15×**. `2026-10-12-phase28-6-fragment-locality-dad05faa` |
+| 28.7 Experiment 3 Revision reuse | How much verified work is reusable across revisions, and at what index cost? | **RESOLVED — positive but marginal/scoped.** A fragment-level dependency graph reuses **83.4%** of next-revision observations and saves **55.5%** of full-rebuild work at a **9.13%** index — **flips NEGATIVE** if per-observation identity nodes are persisted (**35.5%**), **0%** on whole-document redrafts. Semantic edges load-bearing (**986** unchanged-bytes invalidations). Exactness 20/20. `2026-10-12-phase28-7-revision-reuse-b06a2f76` |
+
+**Next programme — 28.8+ (the winning mechanisms).** The three decision gates set
+the **order**, not the attractiveness on paper: build the **fused observation
+executor** (28.5), a **coarse structural** fragment directory (28.6), and
+**incremental observation** under the minimal dependency-signature index (28.7) —
+each with its own falsifiable court and the recorded negatives carried forward.
+
 ## Unmeasured gates
 
 - `N4` (decline-rate threshold): no pre-registered threshold exists, so it is
@@ -379,7 +401,9 @@ finer-than-object granularity (ADR-0028); cross-document durable work reuse
 (ADR-0034/0035, `N3`; re-violated with canonical derivation identity in Phase
 15.7, ADR-0047); encoder-only parametric search as a byte win (ADR-0022);
 adaptive procedural promotion on the tested corpus (ADR-0046); residency as a
-repeated-observation win above ~1 MiB (ADR-0042). See
+repeated-observation win above ~1 MiB (ADR-0042); the `serve_source_range`
+selection-before-materialization clone as an end-to-end win (Phase 28.3 — a
+no-op on the tested corpus and a median **0.09%** of wall, below the MDE). See
 [Findings](findings.md).
 
 ## real100-v1 corpus (frozen, 2026-10-07)

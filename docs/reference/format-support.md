@@ -105,7 +105,7 @@ has no intrinsic pagination; `Page(n)` is never synthesized (ADR-0033/0038).
 | Cross-field identity court (ADR-0060) | 12/12 | `evidence/campaigns/2026-10-09-identity-3400385/`, re-sealed `…/2026-10-10-identity-7f007e2e/` |
 | Real-format smoke (independently sourced) | 12/12 exact | `evidence/campaigns/2026-10-09-realformats-smoke-3400385/` |
 | Stratified real-world multi-format court v1 (52 real + 8 hostile; historical control) | 60/60 byte-exact | `evidence/campaigns/2026-10-10-realformats-stratified-3529688e/` (prior `…/2026-10-10-realformats-stratified-92edce73/`) |
-| Stratified real-world population **v2** (284 real + 24 hostile, 41 formats; Phase 26.5, re-run 27.3/27.5) | 308/308 byte-exact, 0 skipped/blocked; findings **32 → 25 (27.3) → 21 (27.5)**, detection agreements **257 → 264 → 268** | `evidence/campaigns/2026-10-11-realformats-stratified-v2-703ca5ac/`, re-runs `…/2026-10-12-realformats-stratified-v2-6f6f84d0/`, `…/2026-10-12-realformats-stratified-v2-efb51887/` |
+| Stratified real-world population **v2** (284 real + 24 hostile, 41 formats; Phase 26.5, re-run 27.3/27.5/28.1) | 308/308 byte-exact, 0 skipped/blocked; findings **32 → 25 (27.3) → 21 (27.5) → 15 (28.1)**, detection agreements **257 → 264 → 268 → 274** | `evidence/campaigns/2026-10-11-realformats-stratified-v2-703ca5ac/`, re-runs `…/2026-10-12-realformats-stratified-v2-6f6f84d0/`, `…/2026-10-12-realformats-stratified-v2-efb51887/`, `…/2026-10-12-realformats-stratified-v2-941e3d0f/` |
 | JSON comparator repair (modern SQLite+JSONB, span-preserving baseline) | exact 7/7 | `evidence/campaigns/2026-10-09-phase21-5-json-econ-3400385/` |
 | YAML span-preserving comparator (parity with the JSON court) | exact 8/8 | `evidence/campaigns/2026-10-10-phase21-6-yaml-econ-92edce73/` |
 | CSV O(n²)→O(n) metadata fix (`csv_common_metadata`) | large.csv metadata ~16.5 min → ~0.5 s | `evidence/campaigns/2026-10-10-phase21-7-1-csv-3006e56a/`, `…/2026-10-10-phase21-7-csv-econ-3006e56a/` |
@@ -966,6 +966,24 @@ ambiguous); an **HTML document marker wins over the generic XML fallback**
 boundary-less `multipart/*` declines; and TOML accepts the **structural
 terminators** `,`/`]`/`}` after a boolean. Re-sealed in the stratified campaign
 `2026-10-10-realformats-stratified-3529688e` (60/60 byte-exact, 0 skipped).
+
+## Detection completion (Phase 28.1)
+
+Six further stratified-v2 findings were converted by a targeted widening (all 308
+samples still byte-exact; agreements **268 → 274**, findings **21 → 15**): a
+`.doc` whose `WordDocument` mini-stream **and** root mini stream are both
+fragmented now detects via the root mini stream's **FAT chain**
+(`cfbf::stream_leading` reads through `CfbfModel::mini_chain`, model v2); the
+log-stream generic grammar accepts a **`YY/MM/DD HH:MM:SS`** (Spark) and a
+bracketed **`[MM.DD HH:MM:SS]`** (Proxifier) timestamp, and a new
+**BSD-without-`<PRI>`** dialect accepts `Mmm dd hh:mm:ss host tag…: msg`; AsciiDoc
+claims an **`xref:`-macro-only** navigation list; and CBOR claims a **top-level
+tag** at two nodes. The remaining **15 findings** (5 `decline-opaque`, 10
+`misclassified`) stay recorded with reasons — the reST field-list precedence over
+spaced AsciiDoc attributes, the lone-scalar/depth CBOR declines, a Word 6.0 FIB,
+an aborted mbox/multipart EML, a no-timestamp/no-level log record, config/CSV
+precedent over two log streams, a truncated `.pptx`, and a Markdown-over-reST
+claim. Re-sealed `2026-10-12-realformats-stratified-v2-941e3d0f`.
 
 ## Feature gates
 

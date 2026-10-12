@@ -1,6 +1,6 @@
 [package]
 name = "vole-document"
-version = "0.1.0-alpha.37"
+version = "0.1.0-alpha.38"
 edition = "2024"
 rust-version = "1.89"
 description = "Persistent procedural document runtime: byte-exact reconstruction plus a content-addressed procedural seed DAG, queryable observations with provenance, and selective late materialization."
@@ -249,6 +249,15 @@ dsfb-search = []
 # `miniz_oxide` is kept reachable here only as the differential reference for the
 # inflate byte-identity tests.
 field = ["dep:miniz_oxide", "dep:zlib-rs", "store", "memmem-scan"]
+# Phase 28.3: the hot-path profiling gate's measurement prototype. A
+# **dependency-free**, non-default research feature that compiles the
+# selection-before-materialization variant of `dag::serve_source_range` and its
+# `VOLE_SERVE_SELECTIVE` gate so the paired ablation can measure both variants in
+# one binary. It is **never** in `default`; with the feature off the crate is
+# byte-identical to today's build, and with it on the variant is still off unless
+# the env var is set and emits byte-identical output. It ships no production
+# mechanism — that is Phase 28.4, and only if this gate resolves.
+phase28-3-ablation = []
 # Phase 12: the byte-authoritative ZIP physical layer shared by DOCX and EPUB.
 # Optional and **never** in `default`: it pulls a pure-Rust CRC-32 (`crc32fast`)
 # used only for `stored`-member CRC verification and derived observations. It

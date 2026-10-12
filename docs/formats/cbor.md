@@ -12,8 +12,10 @@ CBOR has **no magic bytes**, so detection is a documented, conservative
 heuristic. It is tried **after** the strong magic-byte binaries
 (PDF/ZIP/Parquet/Arrow) and the JSON family (JSON/JSON5/JSONL), and **before**
 the remaining textual heuristics. An input is claimed only on the
-self-described-CBOR tag `55799` (`0xd9 0xd9 0xf7`) or a full-input well-formed
-parse whose root is a container/tag and which reaches at least three nodes; a
+self-described-CBOR tag `55799` (`0xd9 0xd9 0xf7`), a **top-level tag** at two
+nodes (added in **Phase 28.1**, which converted one stratified-v2 `opaque`
+finding, e.g. a tagged date), or a full-input well-formed parse whose root is a
+container/tag and which reaches at least three nodes; a
 container head byte is always `>= 0x80`, so no pure-ASCII document is ever
 claimed. A lone scalar, a truncated item, a map key with no value, an
 unterminated item, a MessagePack source, and prose all stay `Opaque` and
@@ -114,4 +116,7 @@ comparators' fresh-Python-process start-up and is reported for completeness.
 - Phase 21.18 economic court: `tools/phase21-18-cbor-court.sh` (SQLite +
   conventional CBOR load; exactness 20/20); campaign
   [2026-10-10-phase21-18-cbor-econ-6aecd8c5](../../evidence/campaigns/2026-10-10-phase21-18-cbor-econ-6aecd8c5/).
+- Stratified real-world population v2, Phase 28.1 top-level-tag widening (308/308
+  byte-exact; findings 21 → 15):
+  [2026-10-12-realformats-stratified-v2-941e3d0f](../../evidence/campaigns/2026-10-12-realformats-stratified-v2-941e3d0f/).
 - Results: [phase-21-plan.md](../phases/phase-21-plan.md).

@@ -1,0 +1,897 @@
+{
+ "court": "revision-reuse",
+ "exactness": {
+  "n": 20,
+  "ok": 20
+ },
+ "families": [
+  {
+   "change": "real-draft-edit",
+   "family": "nist-sp800-34",
+   "fmt": "docx",
+   "lanes": {
+    "cas": {
+     "fragment_store_bytes": 171586,
+     "index_bytes": 1968,
+     "latency_us_modeled": 95924,
+     "n_unique_fragments": 41,
+     "n_unique_obs": 1072,
+     "obs_execs": 1546,
+     "obs_store_bytes": 0,
+     "obs_total_available": 1546,
+     "persistent_bytes": 173554,
+     "raw_bytes_written": 171586,
+     "work_units": 1587
+    },
+    "full": {
+     "encoded_store_bytes": 225402,
+     "fragment_writes": 56,
+     "latency_us_measured": 96831,
+     "latency_us_modeled": 96831,
+     "obs_execs": 1546,
+     "obs_total_available": 1546,
+     "raw_bytes_written": 184954,
+     "raw_persistent_bytes": 184954,
+     "work_units": 1602
+    },
+    "graph": {
+     "fragment_store_bytes": 171586,
+     "index_bytes": 53808,
+     "index_components": {
+      "chunk_entries": 1968,
+      "dependency_edges": 51456,
+      "edge_delta_over_cas": 51840,
+      "n_unique_edges": 3216,
+      "n_unique_obs": 1072,
+      "obs_identity_overhead": 51456,
+      "semantic_ctx_entries": 384
+     },
+     "index_with_identity_bytes": 105264,
+     "latency_us_modeled": 115205,
+     "n_unique_fragments": 41,
+     "n_unique_obs": 1072,
+     "obs_execs": 1865,
+     "obs_identity_overhead_bytes": 51456,
+     "obs_reused": 0,
+     "obs_store_bytes": 0,
+     "obs_total_available": 1546,
+     "persistent_bytes": 225394,
+     "raw_bytes_written": 171586,
+     "work_units": 1906
+    }
+   },
+   "n_revs": 4,
+   "pairs": [
+    {
+     "from": 1,
+     "invalid": 481,
+     "obs_total": 481,
+     "reusable": 0,
+     "semantic_only_invalid": 0,
+     "to": 2
+    },
+    {
+     "from": 2,
+     "invalid": 468,
+     "obs_total": 468,
+     "reusable": 0,
+     "semantic_only_invalid": 0,
+     "to": 3
+    },
+    {
+     "from": 3,
+     "invalid": 435,
+     "obs_total": 435,
+     "reusable": 0,
+     "semantic_only_invalid": 0,
+     "to": 4
+    }
+   ],
+   "revisions": [
+    {
+     "bytes": 57045,
+     "chunks": 14,
+     "measured": {
+      "build_us": 28698,
+      "exact_ok": 1,
+      "family": "nist-sp800-34",
+      "index_node_count": 1,
+      "node_count": 35,
+      "rev": 1,
+      "store_bytes": 67157
+     },
+     "n_obs": 481,
+     "new_chunk_bytes": 57045,
+     "rev": 1,
+     "sha256": "c429c2b93397b318fa14c9718afb564f9162913e1a71a0d964849a5b862a996d"
+    },
+    {
+     "bytes": 56935,
+     "chunks": 14,
+     "measured": {
+      "build_us": 22622,
+      "exact_ok": 1,
+      "family": "nist-sp800-34",
+      "index_node_count": 1,
+      "node_count": 35,
+      "rev": 2,
+      "store_bytes": 67047
+     },
+     "n_obs": 468,
+     "new_chunk_bytes": 52479,
+     "rev": 2,
+     "sha256": "345fa5f2eb4d47d2433e409cf6c0bbef7256be00d475cb337efdfd19194e90dd"
+    },
+    {
+     "bytes": 42191,
+     "chunks": 14,
+     "measured": {
+      "build_us": 22777,
+      "exact_ok": 1,
+      "family": "nist-sp800-34",
+      "index_node_count": 1,
+      "node_count": 35,
+      "rev": 3,
+      "store_bytes": 52303
+     },
+     "n_obs": 435,
+     "new_chunk_bytes": 37735,
+     "rev": 3,
+     "sha256": "34ce81fe417d491b479de92465b5c2673378f6987423d68c649ada1ed84b3522"
+    },
+    {
+     "bytes": 28783,
+     "chunks": 14,
+     "measured": {
+      "build_us": 22734,
+      "exact_ok": 1,
+      "family": "nist-sp800-34",
+      "index_node_count": 1,
+      "node_count": 35,
+      "rev": 4,
+      "store_bytes": 38895
+     },
+     "n_obs": 162,
+     "new_chunk_bytes": 24327,
+     "rev": 4,
+     "sha256": "3fe358f1cf866c3a6208692517e1705b86581c08bfba49000b95998bc0b581a0"
+    }
+   ],
+   "unique_chunk_bytes": 171586,
+   "unique_chunks": 41
+  },
+  {
+   "change": "real-draft-edit",
+   "family": "nist-sp800-18",
+   "fmt": "docx",
+   "lanes": {
+    "cas": {
+     "fragment_store_bytes": 8991011,
+     "index_bytes": 6144,
+     "latency_us_modeled": 181651,
+     "n_unique_fragments": 128,
+     "n_unique_obs": 538,
+     "obs_execs": 538,
+     "obs_store_bytes": 0,
+     "obs_total_available": 538,
+     "persistent_bytes": 8997155,
+     "raw_bytes_written": 8991011,
+     "work_units": 666
+    },
+    "full": {
+     "encoded_store_bytes": 9203854,
+     "fragment_writes": 173,
+     "latency_us_measured": 193925,
+     "latency_us_modeled": 193925,
+     "obs_execs": 538,
+     "obs_total_available": 538,
+     "raw_bytes_written": 9053942,
+     "raw_persistent_bytes": 9053942,
+     "work_units": 711
+    },
+    "graph": {
+     "fragment_store_bytes": 8991011,
+     "index_bytes": 32352,
+     "index_components": {
+      "chunk_entries": 6144,
+      "dependency_edges": 25824,
+      "edge_delta_over_cas": 26208,
+      "n_unique_edges": 1614,
+      "n_unique_obs": 538,
+      "obs_identity_overhead": 25824,
+      "semantic_ctx_entries": 384
+     },
+     "index_with_identity_bytes": 58176,
+     "latency_us_modeled": 192015,
+     "n_unique_fragments": 128,
+     "n_unique_obs": 538,
+     "obs_execs": 576,
+     "obs_identity_overhead_bytes": 25824,
+     "obs_reused": 0,
+     "obs_store_bytes": 0,
+     "obs_total_available": 538,
+     "persistent_bytes": 9023363,
+     "raw_bytes_written": 8991011,
+     "work_units": 704
+    }
+   },
+   "n_revs": 4,
+   "pairs": [
+    {
+     "from": 1,
+     "invalid": 125,
+     "obs_total": 125,
+     "reusable": 0,
+     "semantic_only_invalid": 0,
+     "to": 2
+    },
+    {
+     "from": 2,
+     "invalid": 163,
+     "obs_total": 163,
+     "reusable": 0,
+     "semantic_only_invalid": 0,
+     "to": 3
+    },
+    {
+     "from": 3,
+     "invalid": 163,
+     "obs_total": 163,
+     "reusable": 0,
+     "semantic_only_invalid": 0,
+     "to": 4
+    }
+   ],
+   "revisions": [
+    {
+     "bytes": 2286200,
+     "chunks": 46,
+     "measured": {
+      "build_us": 50120,
+      "exact_ok": 1,
+      "family": "nist-sp800-18",
+      "index_node_count": 1,
+      "node_count": 99,
+      "rev": 1,
+      "store_bytes": 2329846
+     },
+     "n_obs": 125,
+     "new_chunk_bytes": 2286200,
+     "rev": 1,
+     "sha256": "47885ad3f525df8ed56c18d9cce06c510babbc5440dcf823a9a13d08017151f4"
+    },
+    {
+     "bytes": 2241851,
+     "chunks": 41,
+     "measured": {
+      "build_us": 49244,
+      "exact_ok": 1,
+      "family": "nist-sp800-18",
+      "index_node_count": 1,
+      "node_count": 89,
+      "rev": 2,
+      "store_bytes": 2263357
+     },
+     "n_obs": 120,
+     "new_chunk_bytes": 2235005,
+     "rev": 2,
+     "sha256": "ba74e785e9780fb77c295b0830c1cd7dce93765c5086ea08a56b133153fe330c"
+    },
+    {
+     "bytes": 2267651,
+     "chunks": 44,
+     "measured": {
+      "build_us": 48100,
+      "exact_ok": 1,
+      "family": "nist-sp800-18",
+      "index_node_count": 1,
+      "node_count": 95,
+      "rev": 3,
+      "store_bytes": 2310453
+     },
+     "n_obs": 163,
+     "new_chunk_bytes": 2237477,
+     "rev": 3,
+     "sha256": "6960559df6108873b6fef4f4d30f6b2dbc1bac5da7e9f76fbe9376dee2148fe0"
+    },
+    {
+     "bytes": 2258240,
+     "chunks": 42,
+     "measured": {
+      "build_us": 46461,
+      "exact_ok": 1,
+      "family": "nist-sp800-18",
+      "index_node_count": 1,
+      "node_count": 91,
+      "rev": 4,
+      "store_bytes": 2300198
+     },
+     "n_obs": 130,
+     "new_chunk_bytes": 2232329,
+     "rev": 4,
+     "sha256": "5773efff6a47f1f95663c7182e3ee0d9f0eaf5fc7c699e488467945a11a634f2"
+    }
+   ],
+   "unique_chunk_bytes": 8991011,
+   "unique_chunks": 128
+  },
+  {
+   "change": "style-table",
+   "family": "docx-style",
+   "fmt": "docx",
+   "lanes": {
+    "cas": {
+     "fragment_store_bytes": 73176,
+     "index_bytes": 864,
+     "latency_us_modeled": 69693,
+     "n_unique_fragments": 18,
+     "n_unique_obs": 348,
+     "obs_execs": 1443,
+     "obs_store_bytes": 0,
+     "obs_total_available": 1443,
+     "persistent_bytes": 74040,
+     "raw_bytes_written": 73176,
+     "work_units": 1461
+    },
+    "full": {
+     "encoded_store_bytes": 199912,
+     "fragment_writes": 42,
+     "latency_us_measured": 70838,
+     "latency_us_modeled": 70838,
+     "obs_execs": 1443,
+     "obs_total_available": 1443,
+     "raw_bytes_written": 169576,
+     "raw_persistent_bytes": 169576,
+     "work_units": 1485
+    },
+    "graph": {
+     "fragment_store_bytes": 73176,
+     "index_bytes": 17856,
+     "index_components": {
+      "chunk_entries": 864,
+      "dependency_edges": 16704,
+      "edge_delta_over_cas": 16992,
+      "n_unique_edges": 1044,
+      "n_unique_obs": 348,
+      "obs_identity_overhead": 16704,
+      "semantic_ctx_entries": 288
+     },
+     "index_with_identity_bytes": 34560,
+     "latency_us_modeled": 69693,
+     "n_unique_fragments": 18,
+     "n_unique_obs": 348,
+     "obs_execs": 1443,
+     "obs_identity_overhead_bytes": 16704,
+     "obs_reused": 0,
+     "obs_store_bytes": 0,
+     "obs_total_available": 1443,
+     "persistent_bytes": 91032,
+     "raw_bytes_written": 73176,
+     "work_units": 1461
+    }
+   },
+   "n_revs": 3,
+   "pairs": [
+    {
+     "from": 1,
+     "invalid": 481,
+     "obs_total": 481,
+     "reusable": 0,
+     "semantic_only_invalid": 481,
+     "to": 2
+    },
+    {
+     "from": 2,
+     "invalid": 481,
+     "obs_total": 481,
+     "reusable": 0,
+     "semantic_only_invalid": 481,
+     "to": 3
+    }
+   ],
+   "revisions": [
+    {
+     "bytes": 57045,
+     "chunks": 14,
+     "measured": {
+      "build_us": 22696,
+      "exact_ok": 1,
+      "family": "docx-style",
+      "index_node_count": 1,
+      "node_count": 35,
+      "rev": 1,
+      "store_bytes": 67157
+     },
+     "n_obs": 481,
+     "new_chunk_bytes": 57045,
+     "rev": 1,
+     "sha256": "c429c2b93397b318fa14c9718afb564f9162913e1a71a0d964849a5b862a996d"
+    },
+    {
+     "bytes": 56266,
+     "chunks": 14,
+     "measured": {
+      "build_us": 25617,
+      "exact_ok": 1,
+      "family": "docx-style",
+      "index_node_count": 1,
+      "node_count": 35,
+      "rev": 2,
+      "store_bytes": 66378
+     },
+     "n_obs": 481,
+     "new_chunk_bytes": 8066,
+     "rev": 2,
+     "sha256": "3cd2f2be6c85c6432b904999ae466fb44cbce885243f18faa4290208b42f711d"
+    },
+    {
+     "bytes": 56265,
+     "chunks": 14,
+     "measured": {
+      "build_us": 22525,
+      "exact_ok": 1,
+      "family": "docx-style",
+      "index_node_count": 1,
+      "node_count": 35,
+      "rev": 3,
+      "store_bytes": 66377
+     },
+     "n_obs": 481,
+     "new_chunk_bytes": 8065,
+     "rev": 3,
+     "sha256": "548455a2df68590007cae8231e6c03e10f6f4a9338b2fbce4a5092fbdf478ce6"
+    }
+   ],
+   "unique_chunk_bytes": 73176,
+   "unique_chunks": 18
+  },
+  {
+   "change": "shared-string",
+   "family": "xlsx-ss",
+   "fmt": "xlsx",
+   "lanes": {
+    "cas": {
+     "fragment_store_bytes": 14850,
+     "index_bytes": 816,
+     "latency_us_modeled": 49473,
+     "n_unique_fragments": 17,
+     "n_unique_obs": 16,
+     "obs_execs": 48,
+     "obs_store_bytes": 0,
+     "obs_total_available": 48,
+     "persistent_bytes": 15666,
+     "raw_bytes_written": 14850,
+     "work_units": 65
+    },
+    "full": {
+     "encoded_store_bytes": 59802,
+     "fragment_writes": 39,
+     "latency_us_measured": 66218,
+     "latency_us_modeled": 66218,
+     "obs_execs": 48,
+     "obs_total_available": 48,
+     "raw_bytes_written": 30732,
+     "raw_persistent_bytes": 30732,
+     "work_units": 87
+    },
+    "graph": {
+     "fragment_store_bytes": 14850,
+     "index_bytes": 1408,
+     "index_components": {
+      "chunk_entries": 816,
+      "dependency_edges": 448,
+      "edge_delta_over_cas": 592,
+      "n_unique_edges": 28,
+      "n_unique_obs": 16,
+      "obs_identity_overhead": 768,
+      "semantic_ctx_entries": 144
+     },
+     "index_with_identity_bytes": 2176,
+     "latency_us_modeled": 43384,
+     "n_unique_fragments": 17,
+     "n_unique_obs": 16,
+     "obs_execs": 40,
+     "obs_identity_overhead_bytes": 768,
+     "obs_reused": 8,
+     "obs_store_bytes": 0,
+     "obs_total_available": 48,
+     "persistent_bytes": 16258,
+     "raw_bytes_written": 14850,
+     "work_units": 57
+    }
+   },
+   "n_revs": 3,
+   "pairs": [
+    {
+     "from": 1,
+     "invalid": 12,
+     "obs_total": 16,
+     "reusable": 4,
+     "semantic_only_invalid": 12,
+     "to": 2
+    },
+    {
+     "from": 2,
+     "invalid": 12,
+     "obs_total": 16,
+     "reusable": 4,
+     "semantic_only_invalid": 12,
+     "to": 3
+    }
+   ],
+   "revisions": [
+    {
+     "bytes": 9023,
+     "chunks": 13,
+     "measured": {
+      "build_us": 22015,
+      "exact_ok": 1,
+      "family": "xlsx-ss",
+      "index_node_count": 1,
+      "node_count": 33,
+      "rev": 1,
+      "store_bytes": 18713
+     },
+     "n_obs": 16,
+     "new_chunk_bytes": 9023,
+     "rev": 1,
+     "sha256": "7c9ea2dc47e651b5b95071719cc3f57e5a97e2e5493b7d81e9ed1acd3deab21c"
+    },
+    {
+     "bytes": 10854,
+     "chunks": 13,
+     "measured": {
+      "build_us": 21968,
+      "exact_ok": 1,
+      "family": "xlsx-ss",
+      "index_node_count": 1,
+      "node_count": 33,
+      "rev": 2,
+      "store_bytes": 20544
+     },
+     "n_obs": 16,
+     "new_chunk_bytes": 2913,
+     "rev": 2,
+     "sha256": "9ba010b08981b18e13f1f4f11a3e35b31542fdbe22ed921b5758612aeedfd2a6"
+    },
+    {
+     "bytes": 10855,
+     "chunks": 13,
+     "measured": {
+      "build_us": 22235,
+      "exact_ok": 1,
+      "family": "xlsx-ss",
+      "index_node_count": 1,
+      "node_count": 33,
+      "rev": 3,
+      "store_bytes": 20545
+     },
+     "n_obs": 16,
+     "new_chunk_bytes": 2914,
+     "rev": 3,
+     "sha256": "79fdd4317d21c4b3c3e4fd13787f39afd77dc886b916dcf59c85cf4d9385ef3b"
+    }
+   ],
+   "unique_chunk_bytes": 14850,
+   "unique_chunks": 17
+  },
+  {
+   "change": "text-edit",
+   "family": "csv-text",
+   "fmt": "csv",
+   "lanes": {
+    "cas": {
+     "fragment_store_bytes": 4260449,
+     "index_bytes": 14592,
+     "latency_us_modeled": 292087,
+     "n_unique_fragments": 304,
+     "n_unique_obs": 130269,
+     "obs_execs": 389208,
+     "obs_store_bytes": 0,
+     "obs_total_available": 389208,
+     "persistent_bytes": 4275041,
+     "raw_bytes_written": 4260449,
+     "work_units": 389512
+    },
+    "full": {
+     "encoded_store_bytes": 12593236,
+     "fragment_writes": 894,
+     "latency_us_measured": 292530,
+     "latency_us_modeled": 292530,
+     "obs_execs": 389208,
+     "obs_total_available": 389208,
+     "raw_bytes_written": 12582964,
+     "raw_persistent_bytes": 12582964,
+     "work_units": 390102
+    },
+    "graph": {
+     "fragment_store_bytes": 4260449,
+     "index_bytes": 2103664,
+     "index_components": {
+      "chunk_entries": 14592,
+      "dependency_edges": 2089072,
+      "edge_delta_over_cas": 2089072,
+      "n_unique_edges": 130567,
+      "n_unique_obs": 130269,
+      "obs_identity_overhead": 6252912,
+      "semantic_ctx_entries": 0
+     },
+     "index_with_identity_bytes": 8356576,
+     "latency_us_modeled": 99179,
+     "n_unique_fragments": 304,
+     "n_unique_obs": 130269,
+     "obs_execs": 131957,
+     "obs_identity_overhead_bytes": 6252912,
+     "obs_reused": 257322,
+     "obs_store_bytes": 0,
+     "obs_total_available": 389208,
+     "persistent_bytes": 6364113,
+     "raw_bytes_written": 4260449,
+     "work_units": 132261
+    }
+   },
+   "n_revs": 3,
+   "pairs": [
+    {
+     "from": 1,
+     "invalid": 1425,
+     "obs_total": 129769,
+     "reusable": 128344,
+     "semantic_only_invalid": 0,
+     "to": 2
+    },
+    {
+     "from": 2,
+     "invalid": 763,
+     "obs_total": 129741,
+     "reusable": 128978,
+     "semantic_only_invalid": 0,
+     "to": 3
+    }
+   ],
+   "revisions": [
+    {
+     "bytes": 4194305,
+     "chunks": 298,
+     "measured": {
+      "build_us": 105862,
+      "exact_ok": 1,
+      "family": "csv-text",
+      "index_node_count": 1,
+      "node_count": 2,
+      "rev": 1,
+      "store_bytes": 4197729
+     },
+     "n_obs": 129769,
+     "new_chunk_bytes": 4194305,
+     "rev": 1,
+     "sha256": "fe82e617de6c0ae0812cfbcba051032ea6b7ef9bd15b309a2539c93a5002b311"
+    },
+    {
+     "bytes": 4194329,
+     "chunks": 298,
+     "measured": {
+      "build_us": 94460,
+      "exact_ok": 1,
+      "family": "csv-text",
+      "index_node_count": 1,
+      "node_count": 2,
+      "rev": 2,
+      "store_bytes": 4197753
+     },
+     "n_obs": 129741,
+     "new_chunk_bytes": 41669,
+     "rev": 2,
+     "sha256": "0edee0c48df3e3115049c8a41e9eb0939fe4f65fed4078c3a4c4ed1222446f20"
+    },
+    {
+     "bytes": 4194330,
+     "chunks": 298,
+     "measured": {
+      "build_us": 92208,
+      "exact_ok": 1,
+      "family": "csv-text",
+      "index_node_count": 1,
+      "node_count": 2,
+      "rev": 3,
+      "store_bytes": 4197754
+     },
+     "n_obs": 129698,
+     "new_chunk_bytes": 24475,
+     "rev": 3,
+     "sha256": "aaa764c8e6d9585cb6bfa5789f19ec6e85f06011dff2b53bf9a7fbfa4a6df2a9"
+    }
+   ],
+   "unique_chunk_bytes": 4260449,
+   "unique_chunks": 304
+  },
+  {
+   "change": "text-edit",
+   "family": "json-text",
+   "fmt": "json",
+   "lanes": {
+    "cas": {
+     "fragment_store_bytes": 8415183,
+     "index_bytes": 20544,
+     "latency_us_modeled": 554250,
+     "n_unique_fragments": 428,
+     "n_unique_obs": 57941,
+     "obs_execs": 173459,
+     "obs_store_bytes": 0,
+     "obs_total_available": 173459,
+     "persistent_bytes": 8435727,
+     "raw_bytes_written": 8415183,
+     "work_units": 173887
+    },
+    "full": {
+     "encoded_store_bytes": 12593272,
+     "fragment_writes": 723,
+     "latency_us_measured": 555191,
+     "latency_us_modeled": 555191,
+     "obs_execs": 173459,
+     "obs_total_available": 173459,
+     "raw_bytes_written": 12583099,
+     "raw_persistent_bytes": 12583099,
+     "work_units": 174182
+    },
+    "graph": {
+     "fragment_store_bytes": 8415183,
+     "index_bytes": 951392,
+     "index_components": {
+      "chunk_entries": 20544,
+      "dependency_edges": 930848,
+      "edge_delta_over_cas": 930848,
+      "n_unique_edges": 58178,
+      "n_unique_obs": 57941,
+      "obs_identity_overhead": 2781168,
+      "semantic_ctx_entries": 0
+     },
+     "index_with_identity_bytes": 3732560,
+     "latency_us_modeled": 371318,
+     "n_unique_fragments": 428,
+     "n_unique_obs": 57941,
+     "obs_execs": 116067,
+     "obs_identity_overhead_bytes": 2781168,
+     "obs_reused": 57395,
+     "obs_store_bytes": 0,
+     "obs_total_available": 173459,
+     "persistent_bytes": 9366575,
+     "raw_bytes_written": 8415183,
+     "work_units": 116495
+    }
+   },
+   "n_revs": 3,
+   "pairs": [
+    {
+     "from": 1,
+     "invalid": 28832,
+     "obs_total": 57821,
+     "reusable": 28989,
+     "semantic_only_invalid": 0,
+     "to": 2
+    },
+    {
+     "from": 2,
+     "invalid": 29414,
+     "obs_total": 57820,
+     "reusable": 28406,
+     "semantic_only_invalid": 0,
+     "to": 3
+    }
+   ],
+   "revisions": [
+    {
+     "bytes": 4194344,
+     "chunks": 241,
+     "measured": {
+      "build_us": 162250,
+      "exact_ok": 1,
+      "family": "json-text",
+      "index_node_count": 1,
+      "node_count": 2,
+      "rev": 1,
+      "store_bytes": 4197735
+     },
+     "n_obs": 57821,
+     "new_chunk_bytes": 4194344,
+     "rev": 1,
+     "sha256": "77249c5a07c0be134d38880d3d5602105e1376f19770ae6eb776be3914e9270a"
+    },
+    {
+     "bytes": 4194391,
+     "chunks": 241,
+     "measured": {
+      "build_us": 212670,
+      "exact_ok": 1,
+      "family": "json-text",
+      "index_node_count": 1,
+      "node_count": 2,
+      "rev": 2,
+      "store_bytes": 4197782
+     },
+     "n_obs": 57820,
+     "new_chunk_bytes": 2089022,
+     "rev": 2,
+     "sha256": "2f1178ac562f84bffeded2daf9526dc771c50400ab2afb2659425d5ca77e7de6"
+    },
+    {
+     "bytes": 4194364,
+     "chunks": 241,
+     "measured": {
+      "build_us": 180271,
+      "exact_ok": 1,
+      "family": "json-text",
+      "index_node_count": 1,
+      "node_count": 2,
+      "rev": 3,
+      "store_bytes": 4197755
+     },
+     "n_obs": 57818,
+     "new_chunk_bytes": 2131817,
+     "rev": 3,
+     "sha256": "b7360b032383eee5746e6836dd32ecc481882e837368c0f9db105f3b357c6ade"
+    }
+   ],
+   "unique_chunk_bytes": 8415183,
+   "unique_chunks": 428
+  }
+ ],
+ "kind": "measurement-only simulation",
+ "metadata": {
+  "arch": "x86_64",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "141a41a92897a7d21968cd6e0fe0ddba4161e14687f15c75b52fb413515ab52d",
+  "git_branch": "phase28",
+  "git_commit": "b06a2f762f1f7e4c83723c6b5bbd75c083d1b712",
+  "git_dirty": true,
+  "profile": "release",
+  "python3": "Python 3.11.2",
+  "root": "/work",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "service": "doc-baseline"
+ },
+ "phase": "28.7",
+ "short": "b06a2f76",
+ "totals": {
+  "cas": {
+   "fragment_store_bytes": 21926255,
+   "index_bytes": 44928,
+   "latency_us_modeled": 1243078,
+   "n_unique_fragments": 936,
+   "n_unique_obs": 190184,
+   "obs_execs": 566242,
+   "obs_store_bytes": 0,
+   "obs_total_available": 566242,
+   "persistent_bytes": 21971183,
+   "raw_bytes_written": 21926255,
+   "work_units": 567178
+  },
+  "full": {
+   "encoded_store_bytes": 34875478,
+   "fragment_writes": 1927,
+   "latency_us_measured": 1275533,
+   "latency_us_modeled": 1275533,
+   "obs_execs": 566242,
+   "obs_total_available": 566242,
+   "raw_bytes_written": 34605267,
+   "raw_persistent_bytes": 34605267,
+   "work_units": 568169
+  },
+  "graph": {
+   "fragment_store_bytes": 21926255,
+   "index_bytes": 3160480,
+   "index_with_identity_bytes": 12289312,
+   "latency_us_modeled": 890794,
+   "n_unique_fragments": 936,
+   "n_unique_obs": 190184,
+   "obs_execs": 251948,
+   "obs_identity_overhead_bytes": 9128832,
+   "obs_reused": 314725,
+   "obs_store_bytes": 0,
+   "obs_total_available": 566242,
+   "persistent_bytes": 25086735,
+   "raw_bytes_written": 21926255,
+   "work_units": 252884
+  }
+ }
+}

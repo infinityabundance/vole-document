@@ -106,7 +106,14 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   [Phase 27](phases/phase-27-results.md) (legacy DOC CP sections + PPT
   `SlideListWithText` lists, detection hardening that took the stratified-v2 court
   from 32 to 21 findings, legacy economic courts with Lane C `comparator_absent`,
-  and magic-less Arrow IPC **stream** detection);
+  and magic-less Arrow IPC **stream** detection),
+  [Phase 28](phases/phase-28-results.md) (the performance programme — detection
+  completion **21 → 15**, a repaired competitor envelope with real Arrow for
+  DuckDB and an in-process steady-state headline, a recorded-negative hot-path
+  profiling gate, and the three decision experiments: **28.5** fused Arrow kernel
+  RESOLVED POSITIVE, **28.6** fragment locality — coarse structural index
+  justified, **28.7** revision reuse — positive but marginal/scoped; **28.8+** is
+  the winning-mechanisms programme);
   **in progress**:
   [Phase 21](phases/phase-21-plan.md) (format programme — **Wave 1 complete**: XLSX,
   PPTX, ODS, ODP adapters + economic courts = six office formats; **Wave 2

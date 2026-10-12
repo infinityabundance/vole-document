@@ -1,0 +1,152 @@
+{
+  "capability_accounting": {
+    "duckdb": {
+      "answered": 35,
+      "declined": 7,
+      "declined_codes": {
+        "not-native": 7
+      },
+      "vs_vole": {
+        "both_decline": 0,
+        "capability_gap": 7,
+        "equal": 35,
+        "mismatch": 0
+      }
+    },
+    "sqlite": {
+      "answered": 28,
+      "declined": 14,
+      "declined_codes": {
+        "not-retained": 14
+      },
+      "vs_vole": {
+        "both_decline": 0,
+        "capability_gap": 14,
+        "equal": 28,
+        "mismatch": 0
+      }
+    },
+    "vole": {
+      "answered": 42,
+      "declined": 0,
+      "declined_codes": {},
+      "vs_vole": {}
+    }
+  },
+  "estimator": "paired per-fixture ratio over the common answer set; median + geometric mean; fixed-seed cluster bootstrap (10000 resamples, seed 21721); tie band +/-10%",
+  "exact_n": 7,
+  "exact_ok": 7,
+  "fixtures": [
+    "small_plain.parquet",
+    "optional.parquet",
+    "dictionary.parquet",
+    "gzip.parquet",
+    "multi_rg.parquet",
+    "two_pages.parquet",
+    "large.parquet"
+  ],
+  "headline_metric": "steady (in-process, warm connection/state; per-question median; equal-contract common answer set)",
+  "historical_control": {
+    "campaign": "evidence/campaigns/2026-10-10-phase21-14-parquet-econ-bfe32a33",
+    "note": "pre-28.2 (21.14): `warm` was a single-shot session with no percentiles; `cold` was fresh-process-per-question; the SQLite lane had no typed columns or indexes. A historical control, not a like-for-like delta"
+  },
+  "lanes": [
+    "vole",
+    "sqlite",
+    "duckdb"
+  ],
+  "phase": "28.2 \u2014 Parquet analytical economic court (competitor envelope)",
+  "qcompare": {
+    "Q1": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 7,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 7,
+        "mismatch": 0
+      }
+    },
+    "Q2": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 7,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 7,
+        "mismatch": 0
+      }
+    },
+    "Q3": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 7,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 7,
+        "equal": 0,
+        "mismatch": 0
+      }
+    },
+    "Q4": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 7,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 7,
+        "equal": 0,
+        "mismatch": 0
+      }
+    },
+    "Q5": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 7,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 7,
+        "mismatch": 0
+      }
+    },
+    "Q6": {
+      "duckdb": {
+        "both_decline": 0,
+        "capability_gap": 7,
+        "equal": 0,
+        "mismatch": 0
+      },
+      "sqlite": {
+        "both_decline": 0,
+        "capability_gap": 0,
+        "equal": 7,
+        "mismatch": 0
+      }
+    }
+  },
+  "separate_metrics": [
+    "cold-process (fresh OS process per question)",
+    "cold-cache (fresh connection/reader, warm interpreter)"
+  ],
+  "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s')",
+  "total_mismatch": 0,
+  "verdict": "PASS"
+}

@@ -1,0 +1,33 @@
+{
+  "campaign": "evidence/campaigns/2026-10-12-phase28-2-parquet-econ-f7e0a961",
+  "phase": "28.2 — Parquet economic court (competitor envelope; VOLE vs SQLite vs DuckDB)",
+  "utc": "2026-10-12T12:53:07Z",
+  "measured_commit": "f7e0a961f61f51cfca810b16c83ec5aa5ab36759",
+  "tree_state": " M tools/fixtures/phase21-14-parquet-baseline.py  M tools/fixtures/phase21-14-parquet-duckdb.py  M tools/fixtures/phase21-14-parquet-vole.py  M tools/fixtures/phase21-16-arrow-baseline.py  M tools/fixtures/phase21-16-arrow-duckdb.py  M tools/fixtures/phase21-16-arrow-pyarrow.py  M tools/fixtures/phase21-16-arrow-vole.py  M tools/phase21-14-parquet-court.sh  M tools/phase21-16-arrow-court.sh ?? evidence/campaigns/2026-10-12-phase28-2-arrow-econ-f7e0a961/ ?? evidence/campaigns/2026-10-12-phase28-2-parquet-econ-f7e0a961/ ?? tools/fixtures/phase28-2-harness.py ",
+  "service": "analytical",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "python": "Python 3.11.2",
+  "sqlite3": "3.40.1 2022-12-28 14:03:47 df5c253c0b3dd24916e4ec7cf77d3db5294cc9fd45ae7b9c5e82ad8197f3alt1",
+  "duckdb_version": "1.5.6",
+  "envelope": {
+    "headline": "in-process steady-state (warm connection/state); per-question median; equal-contract common answer set",
+    "separate": ["cold-process (fresh OS process per question)", "cold-cache (fresh connection/reader, warm interpreter)"],
+    "sqlite": "typed columns; covering predicate index; FTS5 external-content trigram index for the substring question (case_sensitive_like=ON) with an instr() cross-check; cache_size=64MiB; mmap; WITHOUT ROWID considered and declined",
+    "duckdb": "column projection; predicate execution with Parquet zonemap/statistics pruning; SQL-level prepared statements; enable_object_cache; threads=4"
+  },
+  "arch": "x86_64",
+  "cargo_lock_sha256": "141a41a92897a7d21968cd6e0fe0ddba4161e14687f15c75b52fb413515ab52d",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "98889a3b09da8c1e30ff3aead1ff012496a26b0efe35da4b65c1e5c5043bf7d1",
+  "profile": "release",
+  "build_args": "--release --locked --all-features",
+  "vole_substrate": "--profile runtime --packed",
+  "fixtures_len_sha256": {"dictionary.parquet": {"len": 329, "sha256": "abab1ad196d2eec906023cb64871d106165ef9208a550d1520ba2218dd672142"}, "gzip.parquet": {"len": 976, "sha256": "7864b01b4d2dd1ab09e45ffaee00f77b604b1d89a6aeaa8e5feec00f47655053"}, "large.parquet": {"len": 2097603, "sha256": "622588609c2818f9fe55c1e167829a707e32f43d224a20d96a192d729ec33b55"}, "multi_rg.parquet": {"len": 1034, "sha256": "313f047729febf5cfbe10fdf6d3dd051fff047b2412289350e8d3127aece0866"}, "optional.parquet": {"len": 334, "sha256": "43dac5454853a8655aab5d8e41a0e3bdded3668b9134dc0e7e04dc7f47da6d91"}, "small_plain.parquet": {"len": 972, "sha256": "79ff5ebe12e211cd37199b199dc81cb1f240f7e36d19472d5b5c7aa3f5694e71"}, "two_pages.parquet": {"len": 529, "sha256": "375ff5b98495eccfb462c3bff2fca6a445d0a16d6a0434a8e1fd9fd8b0527418"}},
+  "reps": 9,
+  "steady_iters": 15,
+  "historical_control": "evidence/campaigns/2026-10-10-phase21-14-parquet-econ-bfe32a33 (pre-28.2, 21.14)",
+  "storage_accounting": "sum of regular-file sizes (find -type f -printf '%s'); du -sb never used",
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

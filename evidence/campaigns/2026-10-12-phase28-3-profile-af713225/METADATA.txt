@@ -1,0 +1,17 @@
+# Phase 28.3 receipt metadata
+generated_utc: 2026-10-12T13:33:29Z
+git_commit: af7132256c000bc03bf652dcea24ff3810d459fc
+git_branch: phase28
+git_dirty: yes
+rustc: rustc 1.99.0 (b940084d7 2026-09-28)
+cargo: cargo 1.99.0 (5f94df478 2026-08-27)
+arch: x86_64
+nproc: 16
+cargo_lock_sha256: 141a41a92897a7d21968cd6e0fe0ddba4161e14687f15c75b52fb413515ab52d
+binary: target/release/vole-document
+binary_sha256: 990faee62c191d713380f4ed6957ebf8d4aa37e472055711f269c01e0f8ccefc
+features: --all-features (includes phase28-3-ablation prototype)
+reps: 8
+bootstrap_resamples: 20000
+env_semantics: VOLE_PROFILE_OPEN=1 (stage profiler) on every run; VOLE_SERVE_SELECTIVE set only for the selective variant
+notes: perf not available in the pinned lane; in-process counters + LD_PRELOAD alloc shim + getrusage used instead.

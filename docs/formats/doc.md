@@ -25,7 +25,10 @@ generic CFBF physical layer and **before** the generic `Cfbf` claim. So:
 
 - a `.doc` whose `WordDocument` stream opens with the Word FIB magic `0xA5EC` and
   a plausible Word 97–2003 `nFib`, with the selected table stream present, becomes
-  `Doc`;
+  `Doc` — **including** a `.doc` whose `WordDocument` mini-stream **and** the
+  root mini stream that indexes it are both **fragmented** (Phase 28.1 resolves a
+  mini sector's absolute position through the root mini stream's FAT chain,
+  `CfbfModel::mini_chain`);
 - a generic compound file, a `.doc` with a bad `wIdent`, and a `.doc` with an
   implausible `nFib` (Word 6/95) stay `Cfbf` (a msg/xls/ppt/msg detector also runs
   in this chain; see [Detection order](../reference/format-support.md));
@@ -121,14 +124,16 @@ a typed empty answer.
   **document-level**, not piece-local or section-scoped. Word 6/95 (an older
   FIB), Word 2007+ `.docx` (an OPC ZIP), and the other legacy CFBF semantic models
   (see [XLS](xls.md), [PPT](ppt.md), [MSG](msg.md)) are also not claimed.
-- **Real-world declines are expected.** In the stratified v2 population two
-  genuine Apache POI `.doc` compound files stay at the generic `Cfbf` layer — a
+- **Real-world declines are expected.** In the stratified v2 population one
+genuine Apache POI `.doc` compound file stays at the generic `Cfbf` layer — a
   **recorded** boundary, not a failure of byte authority: `poi-document-Bug60942b.doc`
   is a **Word 6.0** FIB (`wIdent` `0xA5DC`, `nFib` `0x0065`, outside the supported
-  Word 97–2003 `nFib` subset), and `poi-document-testRangeDelete.doc` has a genuine
-  Word FIB but its `WordDocument` mini-stream — and the root mini stream that
-  indexes it — is **fragmented**, so the first chunk's absolute offset is not
-  recoverable and the header-prefix read conservatively declines.
+  Word 97–2003 `nFib` subset). The second recorded cause,
+  `poi-document-testRangeDelete.doc` — a genuine Word FIB whose `WordDocument`
+  mini-stream and root mini stream are both fragmented — is **fixed in Phase
+  28.1**: the header-prefix read now resolves the fragmented mini chain and the
+  sample detects as `Doc` (regression test
+  `legacy_cfbf_detection::fragmented_mini_stream_in_fragmented_root_stream_is_detected`).
 
 ## Relevant ADRs
 
@@ -146,7 +151,10 @@ a typed empty answer.
 - Phase 27.4 legacy Word **economic** court (Lane B source-retaining SQLite, Lane
   C `comparator_absent`; exactness 7/7):
   [2026-10-12-phase27-4-doc-econ-58f7572f](../../evidence/campaigns/2026-10-12-phase27-4-doc-econ-58f7572f/).
-- Stratified real-world population v2 (Phase 26.5; re-run under 27.3/27.5):
-  [2026-10-11-realformats-stratified-v2-703ca5ac](../../evidence/campaigns/2026-10-11-realformats-stratified-v2-703ca5ac/).
+- Stratified real-world population v2 (Phase 26.5; re-run under 27.3/27.5/28.1):
+  [2026-10-11-realformats-stratified-v2-703ca5ac](../../evidence/campaigns/2026-10-11-realformats-stratified-v2-703ca5ac/),
+  re-sealed [2026-10-12-realformats-stratified-v2-941e3d0f](../../evidence/campaigns/2026-10-12-realformats-stratified-v2-941e3d0f/)
+  (findings 21 → 15; the fragmented root mini stream now detects as `Doc`).
 - Results: [phase-26-results.md](../phases/phase-26-results.md),
-  [phase-27-results.md](../phases/phase-27-results.md).
+  [phase-27-results.md](../phases/phase-27-results.md),
+  [phase-28-results.md](../phases/phase-28-results.md).

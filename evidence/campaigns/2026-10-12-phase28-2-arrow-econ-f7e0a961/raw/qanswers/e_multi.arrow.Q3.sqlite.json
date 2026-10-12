@@ -1,0 +1,1 @@
+{"decline": {"code": "not-retained", "detail": "SQLite has no Arrow reader: a column's exact buffer span/statistics are not retained"}, "declined": true, "detail": {}, "lane": "sqlite", "native": false, "q": "Q3", "value": null}

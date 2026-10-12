@@ -1,0 +1,95 @@
+{
+ "answer_bytes_read": 36414410,
+ "answer_source_span": null,
+ "detail": {
+  "page_count": 36,
+  "page_object": 1,
+  "reachable_objects": 23,
+  "total_objects": 1427
+ },
+ "entry_bytes": 48,
+ "fmt": "pdf",
+ "required_bytes": 61856,
+ "required_n_ranges": 11,
+ "required_ranges": [
+  [
+   3040,
+   3571
+  ],
+  [
+   15363,
+   41584
+  ],
+  [
+   108811,
+   109152
+  ],
+  [
+   109153,
+   112316
+  ],
+  [
+   112317,
+   112706
+  ],
+  [
+   112707,
+   113291
+  ],
+  [
+   36200933,
+   36220745
+  ],
+  [
+   36220746,
+   36220826
+  ],
+  [
+   36220827,
+   36231459
+  ],
+  [
+   36231460,
+   36231540
+  ],
+  [
+   36404817,
+   36404840
+  ]
+ ],
+ "schemes": {
+  "fixed_16384": {
+   "directory_bytes": 106656,
+   "floor_bytes": 130664,
+   "hit_fragments": 8,
+   "n_fragments": 2222
+  },
+  "fixed_262144": {
+   "directory_bytes": 6672,
+   "floor_bytes": 491112,
+   "hit_fragments": 2,
+   "n_fragments": 139
+  },
+  "fixed_4096": {
+   "directory_bytes": 426624,
+   "floor_bytes": 81512,
+   "hit_fragments": 20,
+   "n_fragments": 8888
+  },
+  "fixed_65536": {
+   "directory_bytes": 26688,
+   "floor_bytes": 228968,
+   "hit_fragments": 4,
+   "n_fragments": 556
+  },
+  "native": {
+   "directory_bytes": 21840,
+   "floor_bytes": 61857,
+   "hit_fragments": 11,
+   "n_fragments": 455,
+   "unit_count": 227
+  }
+ },
+ "source": "evidence/scratch/phase28-6-court/corpus/real.pdf",
+ "source_bytes": 36404840
+}

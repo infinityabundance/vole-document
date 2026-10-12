@@ -2,6 +2,80 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.38] — Phase 28: detection completion, competitor envelope, three decision experiments — *unreleased*
+
+- **28.1 — detection completion (findings 21 → 15).** The stratified real-world
+  population v2 court was re-run and re-sealed: **308/308 byte-exact**, detection
+  agreements **268 → 274**, findings **21 → 15** (6 converted). The six fixes: a
+  `.doc` whose `WordDocument` mini-stream **and** root mini stream are both
+  **fragmented** now detects (the first-chunk read resolves a mini sector through
+  the root mini stream's FAT chain, `CfbfModel::mini_chain`, model v2); the
+  log-stream generic grammar accepts a **`YY/MM/DD HH:MM:SS`** (Spark) and a
+  bracketed **`[MM.DD HH:MM:SS]`** (Proxifier) timestamp, plus a new
+  **BSD-without-`<PRI>`** dialect; AsciiDoc claims an **`xref:`-macro-only**
+  navigation list; and CBOR claims a **top-level tag** at two nodes. Each fix has
+  a focused regression test; the remaining **15 findings** stay recorded with
+  reasons. Detection trajectory: **32 → 25 → 21 → 15**. Regression tests in
+  `tests/legacy_cfbf_detection.rs` and the adapter unit tests.
+  `2026-10-12-realformats-stratified-v2-941e3d0f`.
+- **28.2 — competitor envelope (repaired and maximized; measurement only).** The
+  Arrow and Parquet economic courts now give the comparator the **real** data:
+  DuckDB reads the **Arrow C data interface** (`con.register` of the
+  `pyarrow.ipc` table), **not** a Parquet projection; pyarrow reads the `.arrow`
+  file directly; SQLite gets typed columns, a covering predicate index, and a
+  tuned FTS5 trigram index. The headline is **in-process steady-state**, reported
+  separately from **cold-process** and **cold-cache**. Honest result: VOLE **loses
+  every steady-state analytical axis** — Arrow **2.25× / 27.4×** vs DuckDB /
+  pyarrow, Parquet **1.46×** vs DuckDB — but **wins build** (paired medians 0.425×
+  SQLite / 0.472× DuckDB / 0.540× pyarrow on Arrow; 0.483× / 0.662× on Parquet)
+  and **storage vs SQLite** (0.358× Arrow, 0.178× Parquet). Exactness 3/3 · 7/7.
+  `2026-10-12-phase28-2-arrow-econ-f7e0a961`,
+  `2026-10-12-phase28-2-parquet-econ-f7e0a961`.
+- **28.3 — hot-path profiling gate (recorded NEGATIVE; 28.4 ships nothing).** A
+  measurement-only paired ablation of the `serve_source_range` clone (prototype
+  under the non-default `phase28-3-ablation` feature + `VOLE_SERVE_SELECTIVE`)
+  found selection-before-materialization a **no-op** on this corpus
+  (`clone_bytes == referenced_bytes`; the object table is a single whole-source
+  inline object). End-to-end paired effect: median **0.9999** (95% CI
+  0.9982..1.0030), geomean **1.0040** (0.9925..1.0145); the whole
+  `serve_source_range` call is a median **0.09%** of wall, far below the MDE. The
+  dominant cost is derived-model decode. **28.4 ships nothing.** Exactness 21/21.
+  `2026-10-12-phase28-3-profile-af713225`.
+- **28.5 — Experiment 1: fused Arrow predicate/aggregate kernel (RESOLVED
+  POSITIVE).** A bounded native kernel (`arrow-fused`) reads the substrate bytes,
+  decodes **only the addressed numeric column** (fixed-width int/float; everything
+  else declines typed), applies the predicate natively, and aggregates directly.
+  Primary gate vs the shipped in-process path: median **0.0253** (geomean 0.0328,
+  MDE 0.0302) → **resolved faster**; vs DuckDB **0.0077** (geomean 0.0358) — the
+  **~30× faster** reversal of 28.2's 2.25× loss; vs pyarrow **loses on the
+  aggregate** (geomean **1.99**; large-fixture ratio **6.46×**) though near-tie on
+  the evidence variant (geomean 1.03). Exactness 3/3. **Recorded semantic
+  finding:** the shipped `observe --kind text` driver **parses integers only** and
+  silently returns **0** for a non-integral float predicate (the kernel matches
+  pyarrow). `2026-10-12-phase28-5-fused-arrow-e41a78fe`.
+- **28.6 — Experiment 2: fragment locality (decision; measurement only).** On five
+  large documents, the current VOLE closure for a narrow request is the **whole
+  encoded document**; a fragment directory's floor+dir is **42×–435× smaller in
+  5/5** but beats the page-level SQLite control in only **3/5** formats (PDF/DOCX
+  and marginally Parquet win; CSV/JSON lose). A per-record structural index is
+  **not viable** (CSV/native directory 23.5 MB > source). **Decision: a coarse
+  structural index is justified; per-record/tiny-fixed is not.** Exactness 5/5.
+  Historical control: Phase 22.5 (3.15×).
+  `2026-10-12-phase28-6-fragment-locality-dad05faa`.
+- **28.7 — Experiment 3: cross-revision dependency reuse (positive, marginal,
+  scoped; measurement only).** On authentic revision families, a fragment-level
+  **dependency graph** (L3) reuses **83.4%** of next-revision verified
+  observations and saves **55.5%** of full-rebuild work, at an index of **9.13%**
+  of L1 raw — **but flips NEGATIVE if a 48 B per-observation identity node is
+  persisted (35.5%)**, and is **0% on whole-document redrafts**. The semantic
+  edges are load-bearing (**986** invalidations with unchanged physical bytes).
+  Exactness 20/20. ADR-0060 preserved.
+  `2026-10-12-phase28-7-revision-reuse-b06a2f76`.
+- **28.8+ (next programme).** The three decision gates set the order of the
+  winning mechanisms: **fused execution** (28.5), **coarse physical
+  fragmentation** (28.6), and **incremental observation** (28.7), each to ship
+  only with its own falsifiable court.
+
 ## [0.1.0-alpha.37] — Phase 27: legacy depth, detection hardening, legacy economics, Arrow streams — *unreleased*
 
 - **27.1 — legacy Word 97–2003 (`.doc`, MS-DOC) depth: the sectioned surface.**

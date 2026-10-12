@@ -23,7 +23,8 @@
 use std::path::PathBuf;
 
 use vole_document::adapter::arrow::{
-    M_END_OF_STREAM, M_RECORD_BATCH, M_SCHEMA, Value, build_arrow_model, column_values, parse,
+    ArrowModel, FusedPredicate, M_END_OF_STREAM, M_RECORD_BATCH, M_SCHEMA, Value,
+    build_arrow_model, column_values, fused_numeric_scan, half_to_f32, leaf_index, parse,
 };
 use vole_document::container::{Descriptor, ObjectSource};
 use vole_document::dra::{Op, Program};
@@ -924,4 +925,210 @@ fn random_bytes_never_panic() {
         }
         let _ = build_arrow_model(&buf, Limits::STRICT);
     }
+}
+
+// ---------------------------------------------------------------------------
+// Phase 28.5 — the fused predicate/aggregate scan
+// ---------------------------------------------------------------------------
+
+/// The reference predicate (pyarrow semantics: a null compares false), computed
+/// from the fully-decoded typed values so the fused kernel is checked against the
+/// observation path's own decoding, not against itself.
+fn reference_count(source: &[u8], model: &ArrowModel, idx: u32, gt: i64) -> (u64, Vec<u64>) {
+    let vals = column_values(source, model, idx, Limits::DEFAULT).unwrap();
+    let mut n = 0u64;
+    let mut rows = Vec::new();
+    for (i, v) in vals.iter().enumerate() {
+        let m = match v {
+            Value::I64(x) => i128::from(*x) > i128::from(gt),
+            Value::U64(x) => i128::from(*x) > i128::from(gt),
+            Value::F16(bits) => f64::from(half_to_f32(*bits)) > gt as f64,
+            Value::F32(x) => f64::from(*x) > gt as f64,
+            Value::F64(x) => *x > gt as f64,
+            _ => false,
+        };
+        if m {
+            n += 1;
+            rows.push(i as u64);
+        }
+    }
+    (n, rows)
+}
+
+#[test]
+fn fused_scan_matches_the_decoded_column_on_every_numeric_type() {
+    let model = parse(PRIMITIVES, Limits::DEFAULT).unwrap();
+    // Columns 0..=10 are the numeric leaves (11 is the boolean `flag`).
+    for idx in 0..=10u32 {
+        for gt in [-4000i64, 0, 1, 2_000_000_000] {
+            let (want, want_rows) = reference_count(PRIMITIVES, &model, idx, gt);
+            let got = fused_numeric_scan(
+                PRIMITIVES,
+                &model,
+                idx,
+                FusedPredicate::Gt(gt),
+                64,
+                Limits::DEFAULT,
+            )
+            .unwrap_or_else(|e| panic!("col {idx} gt {gt}: fused declined: {e}"));
+            assert_eq!(got.count, want, "col {idx} gt {gt}: count");
+            assert_eq!(got.scanned, 8, "col {idx} gt {gt}: scanned");
+            assert_eq!(got.batches, 1, "col {idx} gt {gt}: batches");
+            let got_rows: Vec<u64> = got.evidence.iter().map(|e| e.row).collect();
+            assert_eq!(got_rows, want_rows, "col {idx} gt {gt}: evidence rows");
+        }
+    }
+}
+
+#[test]
+fn fused_evidence_points_at_the_matching_cells() {
+    let model = parse(PRIMITIVES, Limits::DEFAULT).unwrap();
+    // `i64` is column 3; values are i*1e9 - 4e9 for i in 0..8, so > 0 matches
+    // rows 5, 6, 7 (1e9, 2e9, 3e9), each 8 bytes little-endian in the source.
+    let leaf = model.leaf(3).unwrap().clone();
+    assert_eq!(leaf.name, "i64");
+    let got = fused_numeric_scan(
+        PRIMITIVES,
+        &model,
+        3,
+        FusedPredicate::Gt(0),
+        64,
+        Limits::DEFAULT,
+    )
+    .unwrap();
+    assert_eq!(got.count, 3);
+    let want: [i64; 3] = [1_000_000_000, 2_000_000_000, 3_000_000_000];
+    for (k, e) in got.evidence.iter().enumerate() {
+        assert_eq!(e.row, 5 + k as u64);
+        assert_eq!(e.batch, 0);
+        assert_eq!(e.row_in_batch, 5 + k as u64);
+        assert_eq!(e.span_end - e.span_start, 8);
+        let bytes = &PRIMITIVES[e.span_start as usize..e.span_end as usize];
+        let v = i64::from_le_bytes(bytes.try_into().unwrap());
+        assert_eq!(v, want[k]);
+    }
+    // The cap is honoured and flagged, never silently ignored.
+    let capped = fused_numeric_scan(
+        PRIMITIVES,
+        &model,
+        3,
+        FusedPredicate::Gt(0),
+        2,
+        Limits::DEFAULT,
+    )
+    .unwrap();
+    assert_eq!(
+        capped.count, 3,
+        "the count is exact even when evidence is capped"
+    );
+    assert_eq!(capped.evidence.len(), 2);
+    assert!(capped.evidence_truncated);
+}
+
+#[test]
+fn fused_scan_reports_batch_and_row_coordinates() {
+    let model = parse(MULTI_BATCH, Limits::DEFAULT).unwrap();
+    // `k` (INT32, column 0) is 0..14 across three batches of five; > 7 matches
+    // rows 8..14: batch 1 rows 8,9 and batch 2 rows 10..14.
+    let got = fused_numeric_scan(
+        MULTI_BATCH,
+        &model,
+        0,
+        FusedPredicate::Gt(7),
+        64,
+        Limits::DEFAULT,
+    )
+    .unwrap();
+    assert_eq!(got.count, 7);
+    assert_eq!(got.batches, 3);
+    assert_eq!(got.scanned, 15);
+    let coords: Vec<(u64, u32, u64)> = got
+        .evidence
+        .iter()
+        .map(|e| (e.row, e.batch, e.row_in_batch))
+        .collect();
+    assert_eq!(
+        coords,
+        vec![
+            (8, 1, 3),
+            (9, 1, 4),
+            (10, 2, 0),
+            (11, 2, 1),
+            (12, 2, 2),
+            (13, 2, 3),
+            (14, 2, 4),
+        ]
+    );
+}
+
+#[test]
+fn fused_scan_declines_typed_outside_its_subset() {
+    // UTF8, decimal, dictionary-encoded, and compressed bodies are all outside the
+    // fused subset: a typed decline, never a wrong answer.
+    for (label, bytes, idx) in [
+        ("utf8", STRINGS, 0u32),
+        ("decimal", UNSUPPORTED_DECIMAL, 0),
+        ("dictionary", UNSUPPORTED_DICTIONARY, 0),
+        ("compressed", UNSUPPORTED_COMPRESSED, 0),
+    ] {
+        let model = parse(bytes, Limits::DEFAULT).unwrap();
+        assert_eq!(
+            fused_numeric_scan(
+                bytes,
+                &model,
+                idx,
+                FusedPredicate::Gt(0),
+                0,
+                Limits::DEFAULT
+            )
+            .unwrap_err()
+            .class(),
+            ErrorClass::UnsupportedFeature,
+            "decline mismatch for {label}"
+        );
+    }
+}
+
+#[test]
+fn fused_scan_never_panics_on_random_bytes() {
+    let mut x: u64 = 0x51ED_2A5F_77C1_9E13;
+    for _ in 0..256 {
+        let mut buf = vec![0u8; 384];
+        buf[0..6].copy_from_slice(b"ARROW1");
+        for b in buf.iter_mut().skip(6) {
+            x ^= x << 13;
+            x ^= x >> 7;
+            x ^= x << 17;
+            *b = (x & 0xFF) as u8;
+        }
+        let n = buf.len();
+        buf[n - 6..n].copy_from_slice(b"ARROW1");
+        if let Ok(m) = parse(&buf, Limits::STRICT) {
+            for i in 0..m.leaves.len() as u32 {
+                let _ = fused_numeric_scan(&buf, &m, i, FusedPredicate::Gt(3), 8, Limits::STRICT);
+            }
+        }
+    }
+}
+
+#[test]
+fn fused_scan_reads_the_exact_substrate_source() {
+    // The kernel is only fed the source the field materializes exactly: the bytes
+    // it scans are byte-identical to the original source (ADR-0060 authority).
+    let fx = Fixture::new("fused-substrate", PRIMITIVES);
+    let field = Field::open(&fx.store, &fx.report.field, Limits::DEFAULT).unwrap();
+    let source = field.materialize_exact(Limits::DEFAULT).unwrap();
+    assert_eq!(source, PRIMITIVES);
+    let model = parse(&source, Limits::DEFAULT).unwrap();
+    let idx = leaf_index(&model, "i64").unwrap();
+    let got = fused_numeric_scan(
+        &source,
+        &model,
+        idx,
+        FusedPredicate::Gt(0),
+        0,
+        Limits::DEFAULT,
+    )
+    .unwrap();
+    assert_eq!(got.count, 3);
 }

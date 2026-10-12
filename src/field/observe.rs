@@ -3734,7 +3734,7 @@ pub(crate) fn observe_session(
     if prof {
         let s = crate::field::prof::take();
         eprintln!(
-            "[vole-profile-stage] observe_us={} probe_us={} lookup_calls={} index_nodes={} index_read_us={} index_parse_us={} dispatch_us={} materialize_us={}",
+            "[vole-profile-stage] observe_us={} probe_us={} lookup_calls={} index_nodes={} index_read_us={} index_parse_us={} dispatch_us={} materialize_us={} select_us={} source_serve_us={} clone_bytes={} referenced_bytes={} objects_total={} objects_used={} serve_calls={}",
             s.observe_us,
             s.probe_us,
             s.lookup_calls,
@@ -3742,7 +3742,14 @@ pub(crate) fn observe_session(
             s.index_read_us,
             s.index_parse_us,
             s.dispatch_us,
-            s.materialize_us
+            s.materialize_us,
+            s.select_us,
+            s.source_serve_us,
+            s.clone_bytes,
+            s.referenced_bytes,
+            s.objects_total,
+            s.objects_used,
+            s.serve_calls
         );
     }
     result
@@ -21049,18 +21056,9 @@ impl<S: SeedStore> Ctx<'_, S> {
 #[cfg(feature = "arrow")]
 fn arrow_leaf_index(model: &ArrowModel, spec: &str) -> Result<u32> {
     // A numeric spec addresses by 0-based top-level index when in range; otherwise
-    // (or for a non-numeric spec) it is matched by exact column name.
-    if let Ok(i) = spec.parse::<u32>()
-        && (i as usize) < model.leaves.len()
-    {
-        return Ok(i);
-    }
-    model
-        .leaves
-        .iter()
-        .position(|l| l.name == spec)
-        .map(|i| i as u32)
-        .ok_or_else(|| Error::unsupported_feature(format!("no Arrow column {spec:?}")))
+    // (or for a non-numeric spec) it is matched by exact column name. Shared with
+    // the fused scan (`adapter::arrow::leaf_index`) so both resolve identically.
+    crate::adapter::arrow::leaf_index(model, spec)
 }
 
 #[cfg(feature = "arrow")]

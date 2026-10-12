@@ -60,7 +60,9 @@
 //! first non-blank line) **followed by at least one further block**; or a `==`+
 //! section; or a `|===` table; or a complete delimited block (`----`/`....`/`====`/
 //! `****`/`____`/`--`/`++++`); or a block attribute line `[...]` followed by a
-//! block.
+//! block; or a document that is **only** a list of AsciiDoc cross-reference macro
+//! calls (`* xref:target[]`) — an `xref:target[…]` call is AsciiDoc-only, so it
+//! admits a navigation page that carries no block/title mark (Phase 28.1).
 //!
 //! Two boundaries are *load-bearing and honest*, because the dispatcher tries
 //! Markdown and reStructuredText **before** AsciiDoc and the config/INI family
@@ -577,10 +579,73 @@ pub fn detect(source: &[u8], limits: Limits) -> bool {
     if looks_like_other(source, limits) {
         return false;
     }
+    // A document that is *only* a list of AsciiDoc cross-reference macro calls
+    // (`* xref:target[]`) is an AsciiDoc-only signal that reST and Markdown cannot
+    // produce (they have no `xref:target[…]` call syntax). This admits AsciiDoc
+    // navigation pages that carry no block/title mark.
+    if is_xref_macro_list(source, limits) {
+        return true;
+    }
     match parse(source, limits, false) {
         Ok(m) => m.has_structural_signal(),
         Err(_) => false,
     }
+}
+
+/// Whether `source` is **non-blank line list of AsciiDoc cross-reference macro
+/// calls**: every non-blank line is a list item (`*`/`-`/`.` markers, optionally
+/// nested/repeated, then a space) whose text is exactly an `xref:<target>[…]`
+/// call. At least two such lines are required. This is deliberately narrow — an
+/// AsciiDoc-only mark — so plain prose and other markups never match.
+fn is_xref_macro_list(source: &[u8], limits: Limits) -> bool {
+    if source.is_empty() || source.len() as u64 > limits.max_asciidoc_document_bytes {
+        return false;
+    }
+    let mut items: u32 = 0;
+    for raw in source.split(|&b| b == b'\n') {
+        let line = raw.strip_suffix(b"\r").unwrap_or(raw);
+        if is_blank(line) {
+            continue;
+        }
+        items = items.saturating_add(1);
+        if items > limits.max_asciidoc_blocks {
+            return false;
+        }
+        if !is_xref_list_item(line) {
+            return false;
+        }
+    }
+    items >= 2
+}
+
+/// Whether one line is a list item whose whole text is an `xref:<target>[…]` call.
+fn is_xref_list_item(line: &[u8]) -> bool {
+    // Leading list markers (`*`/`-`/`.`, possibly repeated), then a space.
+    let mut i = 0usize;
+    while i < line.len() && matches!(line[i], b'*' | b'-' | b'.') {
+        i += 1;
+    }
+    if i == 0 || i >= line.len() || line[i] != b' ' {
+        return false;
+    }
+    while i < line.len() && line[i] == b' ' {
+        i += 1;
+    }
+    let Some(after) = line[i..].strip_prefix(b"xref:") else {
+        return false;
+    };
+    // The target runs to the opening bracket and must be a non-empty, space-free
+    // token (a cross-reference id/path, not arbitrary text).
+    let Some(open) = after.iter().position(|&b| b == b'[') else {
+        return false;
+    };
+    let target = &after[..open];
+    if target.is_empty() || target.contains(&b' ') {
+        return false;
+    }
+    // The call must close with a single `]` at the end of the line.
+    let tail = &after[open..];
+    tail.len() >= 2 && tail[tail.len() - 1] == b']' && !tail[1..tail.len() - 1].contains(&b'[')
 }
 
 /// Whether `source` belongs to a family that is *not* AsciiDoc (defence in depth;
@@ -2050,6 +2115,22 @@ mod tests {
         assert!(!detect(b"", l));
         // A lone `= text` line (no further block) is too weak to claim.
         assert!(!detect(b"= lonely\n", l));
+    }
+
+    #[test]
+    fn detects_a_cross_reference_list_and_declines_its_negations() {
+        let l = Limits::DEFAULT;
+        // A navigation page that is only AsciiDoc `xref:` macro list items: an
+        // AsciiDoc-only mark (reST/Markdown cannot produce `xref:target[]`).
+        let nav = b"* xref:index.adoc[]\n** xref:man1/asciidoctor.adoc[]\n** xref:output-file.adoc[]\n** xref:man1/asciidoctor.adoc#options[CLI Options]\n";
+        assert!(detect(nav, l));
+        // A plain Markdown-style bullet list (no xref macros) stays Opaque: a list
+        // alone is not an AsciiDoc-specific mark.
+        assert!(!detect(b"* alpha\n* beta\n* gamma\n", l));
+        // A single xref line is not enough.
+        assert!(!detect(b"* xref:only.adoc[]\n", l));
+        // A list mixing one xref line with a non-xref line is not claimed.
+        assert!(!detect(b"* xref:a.adoc[]\n* just a plain item\n", l));
     }
 
     #[test]

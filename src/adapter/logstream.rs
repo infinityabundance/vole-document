@@ -41,11 +41,13 @@
 //!
 //! [`detect`] claims a log stream only when the source carries **at least two**
 //! non-blank lines and **every** non-blank line matches one of the dialects above
-//! (a `<PRI>` prefix with a valid syslog header, or a leading generic
-//! timestamp/level). It is byte-based and never consults a file name. Because the
-//! whole-source dispatcher tries every higher-priority format first (JSON/JSON5/
-//! JSONL/CBOR/Msgpack, YAML/TOML/config/CSV, and the prose family Markdown/RST/
-//! AsciiDoc), a JSON/YAML/CSV/prose document is never stolen.
+//! (a `<PRI>` prefix with a valid syslog header, a leading generic
+//! timestamp/level — an ISO date, a `YY/MM/DD HH:MM:SS` slash date, or a
+//! bracketed `[MM.DD HH:MM:SS]` — or a BSD line with **no** `<PRI>`). It is
+//! byte-based and never consults a file name. Because the whole-source dispatcher
+//! tries every higher-priority format first (JSON/JSON5/JSONL/CBOR/Msgpack,
+//! YAML/TOML/config/CSV, and the prose family Markdown/RST/AsciiDoc), a
+//! JSON/YAML/CSV/prose document is never stolen.
 //!
 //! ### What it cannot distinguish (recorded honestly)
 //!
@@ -54,10 +56,14 @@
 //!   claimed. A single log-looking line inside otherwise-plain prose is *not*
 //!   claimed, because **every** non-blank line must match.
 //! * A lone leading **timestamp** is accepted (the message is the remainder), so a
-//!   file whose every line begins with an ISO date is claimed as a generic log.
+//!   file whose every line begins with an ISO/slash date or a bracketed
+//!   `[MM.DD HH:MM:SS]` is claimed as a generic log.
 //! * RFC 3164 has no unambiguous field grammar beyond the timestamp and the
-//!   `TAG[pid]:` marker; a line that merely begins with `<PRI>` and a BSD-looking
-//!   timestamp is treated as BSD syslog even if a stricter reader would not.
+//!   `TAG[pid]:` marker; a line that merely begins with `<PRI>` **and** a
+//!   BSD-looking timestamp, or a BSD month-name timestamp with no `<PRI>`, is
+//!   treated as BSD syslog even if a stricter reader would not. The no-`<PRI>`
+//!   tag region is matched leniently (it ends at the first `:`) to cover genuine
+//!   macOS writers that embed spaces and parenthesized suffixes there.
 //!
 //! ## Bounds and no panics
 //!
@@ -593,6 +599,11 @@ fn field(role: u8, start: usize, end: usize) -> LogField {
 }
 
 /// Classify one non-blank line into a dialect, or decline (`None`).
+///
+/// A `<PRI>`-prefixed line is syslog (RFC 5424, then RFC 3164). Otherwise the
+/// generic application-log grammar is tried first (`[ISO]`/slash/bracket timestamp,
+/// and/or a leading level token), and finally a BSD line that carries **no**
+/// `<PRI>` (the shape some macOS writers emit).
 fn classify_line(c: &[u8]) -> Option<LineParse> {
     if c.first() == Some(&b'<') {
         // Both syslog dialects require a `<PRI>` prefix; the RFC 5424 grammar is
@@ -602,7 +613,10 @@ fn classify_line(c: &[u8]) -> Option<LineParse> {
         }
         return try_rfc3164(c);
     }
-    try_generic(c)
+    if let Some(p) = try_generic(c) {
+        return Some(p);
+    }
+    try_bsd_no_pri(c)
 }
 
 /// Parse `<` 1*3DIGIT `>` with a value in `0..=191`. Returns the value and the
@@ -875,6 +889,63 @@ fn try_rfc3164(c: &[u8]) -> Option<LineParse> {
     })
 }
 
+/// Parse a BSD syslog line that carries **no** `<PRI>` prefix — the shape some
+/// macOS `syslog`/`asl` writers emit: `Mmm dd hh:mm:ss host tag…: msg`. The host
+/// is a non-space token; the tag region is everything up to the first `:`. macOS
+/// tags are lenient (they embed spaces, `[pid]`, and parenthesized suffixes such
+/// as `sandboxd[129] ([31211]):`), so the region is matched as a raw run rather
+/// than the strict single-token RFC 3164 TAG. Still anchored on a BSD month-name
+/// timestamp, so it cannot claim arbitrary prose.
+fn try_bsd_no_pri(c: &[u8]) -> Option<LineParse> {
+    let ts_end = parse_bsd_timestamp(c, 0)?;
+    let mut fields = vec![field(F_TIMESTAMP, 0, ts_end)];
+    let mut flags = FLAG_HAS_TIMESTAMP;
+    let mut pos = ts_end;
+    if pos >= c.len() || c[pos] != b' ' {
+        return None;
+    }
+    pos += 1;
+
+    let hs = pos;
+    while pos < c.len() && c[pos] != b' ' {
+        pos += 1;
+    }
+    if pos == hs {
+        return None;
+    }
+    fields.push(field(F_HOSTNAME, hs, pos));
+    flags |= FLAG_HAS_HOSTNAME;
+    if pos >= c.len() {
+        return None;
+    }
+    pos += 1; // the space after the hostname
+
+    let tag_start = pos;
+    while pos < c.len() && c[pos] != b':' {
+        pos += 1;
+    }
+    if pos == tag_start || pos >= c.len() {
+        return None;
+    }
+    fields.push(field(F_TAG, tag_start, pos));
+    flags |= FLAG_HAS_TAG;
+    pos += 1; // the ':'
+    if pos < c.len() {
+        if c[pos] == b' ' {
+            pos += 1;
+        }
+        fields.push(field(F_MSG, pos, c.len()));
+        flags |= FLAG_HAS_MSG;
+    }
+    Some(LineParse {
+        dialect: DIALECT_RFC3164,
+        flags,
+        pri: 0,
+        depth: 1,
+        fields,
+    })
+}
+
 /// Parse an RFC 3164 timestamp (`Mmm dd hh:mm:ss`, the day space-padded to two
 /// columns). Returns the index one past the timestamp.
 fn parse_bsd_timestamp(c: &[u8], pos: usize) -> Option<usize> {
@@ -1046,8 +1117,11 @@ fn parse_level(c: &[u8], pos: usize) -> Option<(usize, bool)> {
     Some((i, false))
 }
 
-/// Parse a generic leading timestamp at `pos`: `[<date-time>]` or a bare ISO
-/// date with an optional time. Returns the index one past the timestamp.
+/// Parse a generic leading timestamp at `pos`: `[<date-time>]` or a bare date with
+/// an optional time. Accepts an ISO `YYYY-MM-DD` date, a slash date
+/// (`YY/MM/DD`/`YYYY/MM/DD`, the Spark dialect), and — inside brackets — a
+/// year-less `MM.DD HH:MM:SS` (the Proxifier dialect). Returns the index one past
+/// the timestamp.
 fn parse_generic_timestamp(c: &[u8], pos: usize) -> Option<usize> {
     if pos >= c.len() {
         return None;
@@ -1058,12 +1132,16 @@ fn parse_generic_timestamp(c: &[u8], pos: usize) -> Option<usize> {
         while i < c.len() && c[i] != b']' {
             i += 1;
         }
-        if i >= c.len() || !looks_like_datetime(&c[inner..i]) {
+        if i >= c.len() {
+            return None;
+        }
+        let body = &c[inner..i];
+        if !looks_like_datetime(body) && !looks_like_dialect_datetime(body) {
             return None;
         }
         return Some(i + 1);
     }
-    let d = parse_iso_date(c, pos)?;
+    let d = parse_iso_date(c, pos).or_else(|| parse_slash_date(c, pos))?;
     let mut i = d;
     if i < c.len() && (c[i] == b'T' || c[i] == b' ') {
         if let Some(tend) = parse_time(c, i + 1) {
@@ -1073,6 +1151,70 @@ fn parse_generic_timestamp(c: &[u8], pos: usize) -> Option<usize> {
         }
     }
     Some(i)
+}
+
+/// Parse a leading `YY/MM/DD` (8 bytes) or `YYYY/MM/DD` (10 bytes) date. Returns
+/// the index one past the date.
+fn parse_slash_date(c: &[u8], pos: usize) -> Option<usize> {
+    let digits = |s: &[u8]| s.iter().all(|b| b.is_ascii_digit());
+    let in_range = |m: u32, d: u32| (1..=12).contains(&m) && (1..=31).contains(&d);
+    // `YYYY/MM/DD`.
+    if pos + 10 <= c.len() {
+        let d = &c[pos..pos + 10];
+        if d[4] == b'/' && d[7] == b'/' && digits(&d[0..4]) && digits(&d[5..7]) && digits(&d[8..10])
+        {
+            let month = ((d[5] - b'0') as u32) * 10 + (d[6] - b'0') as u32;
+            let day = ((d[8] - b'0') as u32) * 10 + (d[9] - b'0') as u32;
+            if in_range(month, day) {
+                return Some(pos + 10);
+            }
+        }
+    }
+    // `YY/MM/DD`.
+    if pos + 8 <= c.len() {
+        let d = &c[pos..pos + 8];
+        if d[2] == b'/' && d[5] == b'/' && digits(&d[0..2]) && digits(&d[3..5]) && digits(&d[6..8])
+        {
+            let month = ((d[3] - b'0') as u32) * 10 + (d[4] - b'0') as u32;
+            let day = ((d[6] - b'0') as u32) * 10 + (d[7] - b'0') as u32;
+            if in_range(month, day) {
+                return Some(pos + 8);
+            }
+        }
+    }
+    None
+}
+
+/// Whether `s` is a whole non-ISO dialect date-time: a slash date followed by a
+/// time (Spark's `YY/MM/DD HH:MM:SS`), or a year-less `MM.DD HH:MM:SS` (Proxifier).
+/// Used for bracketed generic timestamps; the whole body must be consumed.
+fn looks_like_dialect_datetime(s: &[u8]) -> bool {
+    if let Some(d) = parse_slash_date(s, 0)
+        && d < s.len()
+        && (s[d] == b'T' || s[d] == b' ')
+        && matches!(parse_time(s, d + 1), Some(end) if end == s.len())
+    {
+        return true;
+    }
+    // `MM.DD HH:MM:SS` (month.day, a dot separator, no year).
+    if s.len() > 6
+        && s[2] == b'.'
+        && s[0].is_ascii_digit()
+        && s[1].is_ascii_digit()
+        && s[3].is_ascii_digit()
+        && s[4].is_ascii_digit()
+        && s[5] == b' '
+    {
+        let month = ((s[0] - b'0') as u32) * 10 + (s[1] - b'0') as u32;
+        let day = ((s[3] - b'0') as u32) * 10 + (s[4] - b'0') as u32;
+        if (1..=12).contains(&month)
+            && (1..=31).contains(&day)
+            && matches!(parse_time(s, 6), Some(end) if end == s.len())
+        {
+            return true;
+        }
+    }
+    false
 }
 
 /// Parse a leading `YYYY-MM-DD` date. Returns the index one past the date.
@@ -1507,6 +1649,65 @@ mod tests {
             field_bytes(GENERIC, m.records[0].field(F_LEVEL).unwrap()).unwrap(),
             b"INFO"
         );
+    }
+
+    #[test]
+    fn detects_the_widened_dialects() {
+        // Spark: `YY/MM/DD HH:MM:SS LEVEL tag: msg` (year-first slash timestamp).
+        let spark = b"17/06/09 20:10:40 INFO executor.CoarseGrainedExecutorBackend: Registered signal handlers\n17/06/09 20:10:41 INFO spark.SecurityManager: Changing view acls\n";
+        assert!(detect(spark, Limits::DEFAULT));
+        let m = parse(spark, Limits::DEFAULT).unwrap();
+        assert_eq!(m.records[0].dialect, DIALECT_GENERIC);
+        assert!(m.records[0].field(F_TIMESTAMP).is_some());
+        assert!(m.records[0].field(F_LEVEL).is_some());
+        assert_eq!(
+            field_bytes(spark, m.records[0].field(F_TIMESTAMP).unwrap()).unwrap(),
+            b"17/06/09 20:10:40"
+        );
+
+        // Proxifier: `[MM.DD HH:MM:SS] rest` (year-less bracketed timestamp).
+        let prox = b"[10.30 16:49:06] chrome.exe - proxy open through proxy\n[10.30 16:49:07] chrome.exe - proxy close, 0 bytes sent\n";
+        assert!(detect(prox, Limits::DEFAULT));
+        let m = parse(prox, Limits::DEFAULT).unwrap();
+        assert_eq!(m.records[0].dialect, DIALECT_GENERIC);
+        assert_eq!(
+            field_bytes(prox, m.records[0].field(F_TIMESTAMP).unwrap()).unwrap(),
+            b"[10.30 16:49:06]"
+        );
+
+        // BSD syslog with **no** `<PRI>` (the macOS `asl` shape), including a tag
+        // region that embeds spaces and a parenthesized suffix.
+        let bsd = b"Jul  1 09:00:55 host kernel[0]: IOThunderboltSwitch<0> listenerCallback\nJul  1 09:02:26 host com.apple.xpc.launchd[1] (com.apple.xpc.launchd.domain.pid.WebContent.32502): spawn\nJul  2 10:38:53 host sandboxd[129] ([31211]): deny network-outbound\n";
+        assert!(detect(bsd, Limits::DEFAULT));
+        let m = parse(bsd, Limits::DEFAULT).unwrap();
+        assert_eq!(m.records[0].dialect, DIALECT_RFC3164);
+        assert_eq!(m.records[0].flags & FLAG_HAS_PRI, 0);
+        assert!(m.records[0].field(F_TIMESTAMP).is_some());
+        assert!(m.records[0].field(F_HOSTNAME).is_some());
+        assert!(m.records[0].field(F_TAG).is_some());
+        assert_eq!(
+            field_bytes(bsd, m.records[1].field(F_TAG).unwrap()).unwrap(),
+            b"com.apple.xpc.launchd[1] (com.apple.xpc.launchd.domain.pid.WebContent.32502)"
+        );
+    }
+
+    #[test]
+    fn the_widened_grammar_still_declines_prose() {
+        // A BSD-looking date but no `:` tag terminator, and a prose second line.
+        assert!(!detect(
+            b"May 12 10:00:05 there is no colon here\nand this line is prose too\n",
+            Limits::DEFAULT
+        ));
+        // A bracketed token that is not a datetime, and invalid date fields.
+        assert!(!detect(
+            b"[not a date] just a bracket\n13/45/99 99:99:99 nope\n",
+            Limits::DEFAULT
+        ));
+        // A single widened-dialect line is still not enough.
+        assert!(!detect(
+            b"17/06/09 20:10:40 INFO only one\n",
+            Limits::DEFAULT
+        ));
     }
 
     #[test]

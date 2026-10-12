@@ -2430,6 +2430,237 @@ pub fn column_bytes(
 }
 
 // ---------------------------------------------------------------------------
+// Fused predicate/aggregate scan (Phase 28.5 decision experiment)
+// ---------------------------------------------------------------------------
+
+/// A fused numeric predicate: keep rows where the column value `<op>` the
+/// threshold.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum FusedPredicate {
+    /// Strictly greater than the integer threshold. Integer columns compare as
+    /// integers; floating-point columns compare as `f64`.
+    Gt(i64),
+}
+
+/// One matching row's evidence: its coordinates and the **exact** source byte
+/// span of the decoded value's data.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct FusedEvidence {
+    /// The whole-file 0-based row index.
+    pub row: u64,
+    /// The 0-based record-batch index.
+    pub batch: u32,
+    /// The 0-based row index within the batch.
+    pub row_in_batch: u64,
+    /// The exact source byte span `[start, end)` of the value's data bytes.
+    pub span_start: u64,
+    /// One past the value's data bytes.
+    pub span_end: u64,
+}
+
+/// The result of a fused predicate/aggregate scan.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct FusedResult {
+    /// The number of non-null rows whose value satisfies the predicate.
+    pub count: u64,
+    /// The total number of rows scanned (summed over batches).
+    pub scanned: u64,
+    /// The number of record batches scanned.
+    pub batches: u64,
+    /// The matched rows' evidence, capped at the caller's `evidence_cap`.
+    pub evidence: Vec<FusedEvidence>,
+    /// Whether `evidence` was truncated because the cap was reached.
+    pub evidence_truncated: bool,
+}
+
+/// Read a little-endian signed integer of `w` bytes (1/2/4/8).
+fn read_int_le(b: &[u8], w: usize) -> Result<i64> {
+    Ok(match w {
+        1 => i64::from(b[0] as i8),
+        2 => i64::from(i16::from_le_bytes([b[0], b[1]])),
+        4 => i64::from(i32::from_le_bytes([b[0], b[1], b[2], b[3]])),
+        8 => i64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]),
+        _ => return Err(corrupt("unsupported signed integer width")),
+    })
+}
+
+/// Read a little-endian unsigned integer of `w` bytes (1/2/4/8).
+fn read_uint_le(b: &[u8], w: usize) -> Result<u64> {
+    Ok(match w {
+        1 => u64::from(b[0]),
+        2 => u64::from(u16::from_le_bytes([b[0], b[1]])),
+        4 => u64::from(u32::from_le_bytes([b[0], b[1], b[2], b[3]])),
+        8 => u64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]),
+        _ => return Err(corrupt("unsupported unsigned integer width")),
+    })
+}
+
+/// Read a little-endian float of the given precision (0 = F16, 1 = F32, 2 = F64).
+fn read_float_le(b: &[u8], precision: i32) -> Result<f64> {
+    Ok(match precision {
+        0 => f64::from(half_to_f32(u16::from_le_bytes([b[0], b[1]]))),
+        1 => f64::from(f32::from_le_bytes([b[0], b[1], b[2], b[3]])),
+        2 => f64::from_le_bytes([b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7]]),
+        _ => return Err(corrupt("unknown floating-point precision")),
+    })
+}
+
+/// Resolve a column spec (a 0-based top-level index when in range, otherwise an
+/// exact column name) to a leaf-column index.
+pub fn leaf_index(model: &ArrowModel, spec: &str) -> Result<u32> {
+    if let Ok(i) = spec.parse::<u32>()
+        && (i as usize) < model.leaves.len()
+    {
+        return Ok(i);
+    }
+    model
+        .leaves
+        .iter()
+        .position(|l| l.name == spec)
+        .map(|i| i as u32)
+        .ok_or_else(|| Error::unsupported_feature(format!("no Arrow column {spec:?}")))
+}
+
+/// **Fused** predicate/aggregate scan of one numeric Arrow column.
+///
+/// Streams the record batches, decodes **only** the addressed column's values in
+/// their native form (no `Value` enum, no per-value allocation, no text
+/// rendering, no JSON), applies `predicate`, and accumulates the count —
+/// optionally collecting the exact source coordinates of matching rows. It reads
+/// the same buffers the observation path reads, so its answer is identical to a
+/// predicate evaluated over `column_values`, but it never materializes the whole
+/// typed model.
+///
+/// Typed-declining: anything outside the supported subset (a non-integer,
+/// non-float column; an unindexable batch layout; body compression; a short or
+/// malformed buffer) returns [`Error::unsupported_feature`] (or a bounds error),
+/// never a wrong answer and never a panic.
+pub fn fused_numeric_scan(
+    source: &[u8],
+    model: &ArrowModel,
+    leaf_index: u32,
+    predicate: FusedPredicate,
+    evidence_cap: usize,
+    limits: Limits,
+) -> Result<FusedResult> {
+    let leaf = model
+        .leaf(leaf_index)
+        .ok_or_else(|| Error::unsupported_feature(format!("no Arrow column {leaf_index}")))?;
+    if !model.indexable {
+        return Err(Error::unsupported_feature(
+            "Arrow batch buffer layout is not statically indexable",
+        ));
+    }
+    if !leaf.supported {
+        return Err(Error::unsupported_feature(format!(
+            "Arrow column {}: {}",
+            leaf.name,
+            leaf.decline.as_deref().unwrap_or("unsupported")
+        )));
+    }
+    if leaf.type_tag != T_INT && leaf.type_tag != T_FLOAT {
+        return Err(Error::unsupported_feature(format!(
+            "fused scan supports integer and floating-point columns; column {} is {}",
+            leaf.name,
+            type_name(leaf.type_tag)
+        )));
+    }
+    let width = leaf.width as usize;
+    if width == 0 {
+        return Err(corrupt("fixed-width column has zero width"));
+    }
+    let FusedPredicate::Gt(threshold) = predicate;
+    let mut budget = DecodeBudget {
+        values_left: limits.max_arrow_values,
+        bytes_left: limits.max_arrow_decompressed_bytes,
+    };
+    let mut result = FusedResult {
+        count: 0,
+        scanned: 0,
+        batches: 0,
+        evidence: Vec::new(),
+        evidence_truncated: false,
+    };
+    let mut base: u64 = 0;
+    for (bi, desc) in model.batches.iter().enumerate() {
+        if desc.compression >= 0 {
+            return Err(Error::unsupported_feature(
+                "Arrow body compression is not supported",
+            ));
+        }
+        let meta = read_batch_meta(source, desc, limits)?;
+        let rows = usize::try_from(meta.rows.max(0))
+            .map_err(|_| Error::resource_limit("record batch row count is implausible"))?;
+        budget.add_values(rows as u64)?;
+        // The validity bitmap is optional; an absent/empty slot means all-valid.
+        let validity = match slot(&meta.buffers, leaf.validity_slot).ok() {
+            Some(b) => {
+                let s = buffer_slice(source, desc, b)?;
+                if s.is_empty() {
+                    None
+                } else {
+                    if s.len() < rows.div_ceil(8) {
+                        return Err(corrupt("validity bitmap is too short"));
+                    }
+                    Some(s)
+                }
+            }
+            None => None,
+        };
+        let data = slot(&meta.buffers, leaf.data_slot)?;
+        let data_slice = buffer_slice(source, desc, data)?;
+        let need = rows
+            .checked_mul(width)
+            .ok_or_else(|| corrupt("data buffer size overflows"))?;
+        if data_slice.len() < need {
+            return Err(corrupt("data buffer is too short"));
+        }
+        budget.add_bytes(need as u64)?;
+        let data_start = data_slice.as_ptr() as u64 - source.as_ptr() as u64;
+        for i in 0..rows {
+            if let Some(b) = validity
+                && !validity_bit(b, i)
+            {
+                continue;
+            }
+            let p = i * width;
+            let cell = &data_slice[p..p + width];
+            let matched = match leaf.type_tag {
+                T_INT => {
+                    if leaf.int_signed {
+                        i128::from(read_int_le(cell, width)?) > i128::from(threshold)
+                    } else {
+                        i128::from(read_uint_le(cell, width)?) > i128::from(threshold)
+                    }
+                }
+                _ => read_float_le(cell, leaf.float_precision)? > threshold as f64,
+            };
+            if matched {
+                result.count += 1;
+                if evidence_cap > 0 {
+                    if result.evidence.len() < evidence_cap {
+                        let start = data_start + p as u64;
+                        result.evidence.push(FusedEvidence {
+                            row: base + i as u64,
+                            batch: bi as u32,
+                            row_in_batch: i as u64,
+                            span_start: start,
+                            span_end: start + width as u64,
+                        });
+                    } else {
+                        result.evidence_truncated = true;
+                    }
+                }
+            }
+        }
+        result.scanned += rows as u64;
+        result.batches += 1;
+        base += rows as u64;
+    }
+    Ok(result)
+}
+
+// ---------------------------------------------------------------------------
 // Binary model reader/writer helpers
 // ---------------------------------------------------------------------------
 

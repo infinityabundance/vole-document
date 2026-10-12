@@ -1,0 +1,50 @@
+PHASE 28.7 DECISION — cross-revision dependency reuse (measurement only)
+
+Lanes: L1 full rebuild; L2 versioned content-addressed store (physical CDC,
+no semantic edges); L3 fragment-level dependency graph (semantic edges).
+
+  nist-sp800-34 docx  real-draft-edit obs 1,546: graph recomputes 1,865, reuses 0 (0.0%);
+        L3 index 53,808 B vs cas store 173,554 B (graph-only edge+semantic delta 51,840 B);
+        semantic-only invalidations (physical bytes unchanged, observation still invalid): 0
+  nist-sp800-18 docx  real-draft-edit obs 538: graph recomputes 576, reuses 0 (0.0%);
+        L3 index 32,352 B vs cas store 8,997,155 B (graph-only edge+semantic delta 26,208 B);
+        semantic-only invalidations (physical bytes unchanged, observation still invalid): 0
+  docx-style    docx  style-table    obs 1,443: graph recomputes 1,443, reuses 0 (0.0%);
+        L3 index 17,856 B vs cas store 74,040 B (graph-only edge+semantic delta 16,992 B);
+        semantic-only invalidations (physical bytes unchanged, observation still invalid): 962
+  xlsx-ss       xlsx  shared-string  obs 48: graph recomputes 40, reuses 8 (16.7%);
+        L3 index 1,408 B vs cas store 15,666 B (graph-only edge+semantic delta 592 B);
+        semantic-only invalidations (physical bytes unchanged, observation still invalid): 24
+  csv-text      csv   text-edit      obs 389,208: graph recomputes 131,957, reuses 257,322 (66.1%);
+        L3 index 2,103,664 B vs cas store 4,275,041 B (graph-only edge+semantic delta 2,089,072 B);
+        semantic-only invalidations (physical bytes unchanged, observation still invalid): 0
+  json-text     json  text-edit      obs 173,459: graph recomputes 116,067, reuses 57,395 (33.1%);
+        L3 index 951,392 B vs cas store 8,435,727 B (graph-only edge+semantic delta 930,848 B);
+        semantic-only invalidations (physical bytes unchanged, observation still invalid): 0
+
+TOTALS
+  verified obs executions  L1=566,242  L2=566,242  L3=251,948  (L3 reuses 314,725)
+  persistent bytes         L1raw=34,605,267  L2=21,971,183  L3=25,086,735  (L3 index=3,160,480)
+
+  graph vs CAS work saved: 314,294 of 566,242 obs executions (55.5% of the full-rebuild work)
+  next-revision observations reused: 314,725 of 377,549 (83.4%)
+  graph persistent bytes vs L1 raw: saved 9,518,532 (L3 index is 9.13% of L1 raw)
+  graph-only index delta over CAS (chunk + edge + semantic entries): 3,115,552 B
+  index model: minimal dependency-signature index = 3,160,480 B (9.13% of L1 raw);
+    if the design ALSO persists a 48 B per-observation identity node it is 12,289,312 B (35.51%).
+  semantic-only invalidations (physical bytes unchanged, observation still invalid): 986
+
+DECISION
+  criterion: retained>=20% [yes]  index<=10% of L1 [yes]  graph delta < CAS byte saving [yes]
+  RESOLVED (positive, scoped, marginal): the minimal dependency-signature
+  index does NOT consume the byte advantage. A fragment-level physical
+  content-addressed store already captures the byte reuse (12,634,084 B saved vs a
+  full rebuild, 36.5% of L1 raw), and the graph adds only 3,115,552 B of index
+  (9.1% of L1 raw) while reusing 83.4% of next-revision verified
+  observations. The semantic edges are load-bearing: 986 invalidations have
+  UNCHANGED physical bytes and would be reused WRONG by a physical-only store.
+  FRAGILITY (stated, not hidden): the verdict is marginal on the 10%
+  index criterion (9.1%). If the design also persists a 48 B per-observation
+  identity node the index becomes 12,289,312 B (35.5%) and the verdict flips to
+  NEGATIVE. SCOPE: the work win lives in LOCALIZED edits; on a whole-document
+  redraft it is 0 by construction (and the byte baseline there is also ~0).

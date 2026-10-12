@@ -156,4 +156,13 @@ impl DocumentFieldSession {
     pub fn sync(&self) -> Result<()> {
         self.store.sync()
     }
+
+    /// The **exact original source bytes**, materialized from the field's own
+    /// exact authority (the descriptor it was built from), not by re-opening the
+    /// original source file. This is the substrate a fused kernel reads: it is the
+    /// same byte-authority as `materialize --exact`, and it is off the observation
+    /// path (it is never consulted by, and never changes, `observe`).
+    pub fn source_exact(&self, limits: Limits) -> Result<Vec<u8>> {
+        self.field.materialize_exact(limits)
+    }
 }

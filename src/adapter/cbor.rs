@@ -50,9 +50,12 @@
 //!    source that then parses, in full, as exactly one well-formed CBOR item (the
 //!    format literally announces itself); **or**
 //! 2. a **full-input, well-formed** parse whose root is a **container** (array or
-//!    map) or a **tag**, reaching at least [`MIN_DETECT_NODES`] nodes from at least
-//!    [`MIN_DETECT_BYTES`] bytes — so a single scalar, an empty container, a
-//!    three-byte item, and any structurally trivial input stay `Opaque`.
+//!    map) reaching at least [`MIN_DETECT_NODES`] nodes, or whose root is a
+//!    **tag** reaching at least [`MIN_TAG_DETECT_NODES`] nodes (a top-level tag
+//!    is itself the signal — it announces a typed CBOR item — so a tag wrapping a
+//!    single scalar is admitted); from at least [`MIN_DETECT_BYTES`] bytes — so a
+//!    bare scalar, an empty container, a three-byte item, and any structurally
+//!    trivial input stay `Opaque`.
 //!
 //! A container head byte is always `>= 0x80`, so this detector can **never** claim
 //! a pure-ASCII document (every JSON/YAML/TOML/XML/HTML/prose source is therefore
@@ -97,6 +100,10 @@ pub const SELF_DESCRIBED_MAGIC: [u8; 3] = [0xd9, 0xd9, 0xf7];
 /// The minimum node count a source without the self-described tag must reach to be
 /// detected as CBOR (so a single scalar or an empty container stays `Opaque`).
 pub const MIN_DETECT_NODES: u32 = 3;
+/// The minimum node count for a **top-level tag** to be detected: the tag plus its
+/// one tagged item. A tag is itself a strong, self-identifying CBOR construct, so a
+/// tag wrapping a single scalar (e.g. tag 0 around a date string) is admitted.
+pub const MIN_TAG_DETECT_NODES: u32 = 2;
 /// The minimum source length admitted for structural detection.
 pub const MIN_DETECT_BYTES: u64 = 4;
 
@@ -405,8 +412,16 @@ pub fn detect(source: &[u8], limits: Limits) -> bool {
     }
     match parse(source, limits, false) {
         Ok(m) => {
-            let rich = is_container(m.top_type) || m.top_type == K_TAG;
-            rich && m.item_count() >= MIN_DETECT_NODES
+            // A top-level tag is itself the signal (the tag announces a typed CBOR
+            // item), so it is admitted at a lower node floor than a bare container.
+            let floor = if m.top_type == K_TAG {
+                MIN_TAG_DETECT_NODES
+            } else if is_container(m.top_type) {
+                MIN_DETECT_NODES
+            } else {
+                return false;
+            };
+            m.item_count() >= floor
         }
         Err(_) => false,
     }
@@ -1468,6 +1483,32 @@ mod tests {
             b"plain prose, definitely not cbor\n",
             Limits::DEFAULT
         ));
+    }
+
+    #[test]
+    fn detects_a_tagged_scalar_and_rejects_a_bare_scalar() {
+        // tag 0 (standard date/time string) around a text string — the libcbor
+        // `tagged_date` example. A top-level tag is itself the signal, so the tag
+        // plus its one tagged item (two nodes) is admitted.
+        let tagged = [
+            0xc0, 0x74, b'2', b'0', b'1', b'3', b'-', b'0', b'3', b'-', b'2', b'1', b'T', b'2',
+            b'0', b':', b'0', b'4', b':', b'0', b'0', b'Z',
+        ];
+        assert!(detect(&tagged, Limits::DEFAULT));
+        assert_eq!(
+            parse(&tagged, Limits::DEFAULT, false).unwrap().top_type,
+            K_TAG
+        );
+        // The same bytes without the tag lead are a bare text string (a scalar) and
+        // stay Opaque.
+        let untagged = &tagged[1..];
+        assert_eq!(
+            parse(untagged, Limits::DEFAULT, false).unwrap().top_type,
+            K_TEXT
+        );
+        assert!(!detect(untagged, Limits::DEFAULT));
+        // A lone integer stays Opaque (too short / trivial).
+        assert!(!detect(&[0x18, 0x2a], Limits::DEFAULT));
     }
 
     #[test]

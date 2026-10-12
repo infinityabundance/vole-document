@@ -1,0 +1,329 @@
+{
+ "branch": "phase28",
+ "campaign": "2026-10-12-phase28-6-fragment-locality-dad05faa",
+ "commit": "dad05faa",
+ "directory_entry_model_bytes": 48,
+ "exact_ok": 5,
+ "n_docs": 5,
+ "per_format": {
+  "csv": {
+   "bytes_returned": 844,
+   "exact_ok": 1,
+   "ideal_floor": 54,
+   "schemes": {
+    "fixed_16384": {
+     "directory_bytes": 49200,
+     "floor_bytes": 16384,
+     "hit_fragments": 1,
+     "n_fragments": 1025
+    },
+    "fixed_262144": {
+     "directory_bytes": 3120,
+     "floor_bytes": 262144,
+     "hit_fragments": 1,
+     "n_fragments": 65
+    },
+    "fixed_4096": {
+     "directory_bytes": 196656,
+     "floor_bytes": 4096,
+     "hit_fragments": 1,
+     "n_fragments": 4097
+    },
+    "fixed_65536": {
+     "directory_bytes": 12336,
+     "floor_bytes": 65536,
+     "hit_fragments": 1,
+     "n_fragments": 257
+    },
+    "native": {
+     "directory_bytes": 23539920,
+     "floor_bytes": 66,
+     "hit_fragments": 3,
+     "n_fragments": 490415
+    }
+   },
+   "sqlite": {
+    "blob": {
+     "bytes": 53540,
+     "db_bytes": 16801792,
+     "distinct_ranges": 1,
+     "extract": 54,
+     "pages": 2,
+     "reads": 26
+    },
+    "pages": {
+     "bytes": 12404,
+     "db_bytes": 18882560,
+     "distinct_ranges": 2,
+     "extract": 54,
+     "pages": 3,
+     "reads": 5
+    }
+   },
+   "src_bytes": 16777245,
+   "src_sha256": "774cd1508e49330b63a98a9cccb0c30b6d6697b03049d8c19427fe2586af1946",
+   "vole_bytes_read": 16778079,
+   "vole_phys_bytes": 16780215,
+   "vole_rss_kb": 69716,
+   "vole_wall_us": 56035
+  },
+  "docx": {
+   "bytes_returned": 28,
+   "exact_ok": 1,
+   "ideal_floor": 15192,
+   "schemes": {
+    "fixed_16384": {
+     "directory_bytes": 6720,
+     "floor_bytes": 25208,
+     "hit_fragments": 2,
+     "n_fragments": 140
+    },
+    "fixed_262144": {
+     "directory_bytes": 432,
+     "floor_bytes": 451192,
+     "hit_fragments": 2,
+     "n_fragments": 9
+    },
+    "fixed_4096": {
+     "directory_bytes": 26832,
+     "floor_bytes": 21112,
+     "hit_fragments": 6,
+     "n_fragments": 559
+    },
+    "fixed_65536": {
+     "directory_bytes": 1680,
+     "floor_bytes": 123512,
+     "hit_fragments": 2,
+     "n_fragments": 35
+    },
+    "native": {
+     "directory_bytes": 2208,
+     "floor_bytes": 15192,
+     "hit_fragments": 2,
+     "n_fragments": 46
+    }
+   },
+   "sqlite": {
+    "blob": {
+     "bytes": 4165764,
+     "db_bytes": 2293760,
+     "distinct_ranges": 50,
+     "extract": 15192,
+     "pages": 509,
+     "reads": 1020
+    },
+    "pages": {
+     "bytes": 28788,
+     "db_bytes": 2580480,
+     "distinct_ranges": 5,
+     "extract": 15192,
+     "pages": 7,
+     "reads": 9
+    }
+   },
+   "src_bytes": 2286200,
+   "src_sha256": "47885ad3f525df8ed56c18d9cce06c510babbc5440dcf823a9a13d08017151f4",
+   "vole_bytes_read": 2309293,
+   "vole_phys_bytes": 2311765,
+   "vole_rss_kb": 14144,
+   "vole_wall_us": 54954
+  },
+  "json": {
+   "bytes_returned": 72,
+   "exact_ok": 1,
+   "ideal_floor": 72,
+   "schemes": {
+    "fixed_16384": {
+     "directory_bytes": 49200,
+     "floor_bytes": 16384,
+     "hit_fragments": 1,
+     "n_fragments": 1025
+    },
+    "fixed_262144": {
+     "directory_bytes": 3120,
+     "floor_bytes": 262144,
+     "hit_fragments": 1,
+     "n_fragments": 65
+    },
+    "fixed_4096": {
+     "directory_bytes": 196656,
+     "floor_bytes": 4096,
+     "hit_fragments": 1,
+     "n_fragments": 4097
+    },
+    "fixed_65536": {
+     "directory_bytes": 12336,
+     "floor_bytes": 65536,
+     "hit_fragments": 1,
+     "n_fragments": 257
+    },
+    "native": {
+     "directory_bytes": 528,
+     "floor_bytes": 16777228,
+     "hit_fragments": 1,
+     "n_fragments": 11
+    }
+   },
+   "sqlite": {
+    "blob": {
+     "bytes": 8308,
+     "db_bytes": 16801792,
+     "distinct_ranges": 1,
+     "extract": 72,
+     "pages": 2,
+     "reads": 4
+    },
+    "pages": {
+     "bytes": 12404,
+     "db_bytes": 18886656,
+     "distinct_ranges": 2,
+     "extract": 72,
+     "pages": 3,
+     "reads": 5
+    }
+   },
+   "src_bytes": 16777304,
+   "src_sha256": "930d4ff533c1171c1e28b7b9f15823d915d058821dc7ab29a5607d7f18f19493",
+   "vole_bytes_read": 16778341,
+   "vole_phys_bytes": 16780605,
+   "vole_rss_kb": 264516,
+   "vole_wall_us": 214088
+  },
+  "parquet": {
+   "bytes_returned": 1,
+   "exact_ok": 1,
+   "ideal_floor": 400023,
+   "schemes": {
+    "fixed_16384": {
+     "directory_bytes": 49200,
+     "floor_bytes": 409600,
+     "hit_fragments": 25,
+     "n_fragments": 1025
+    },
+    "fixed_262144": {
+     "directory_bytes": 3120,
+     "floor_bytes": 524288,
+     "hit_fragments": 2,
+     "n_fragments": 65
+    },
+    "fixed_4096": {
+     "directory_bytes": 196656,
+     "floor_bytes": 401408,
+     "hit_fragments": 98,
+     "n_fragments": 4097
+    },
+    "fixed_65536": {
+     "directory_bytes": 12336,
+     "floor_bytes": 458752,
+     "hit_fragments": 7,
+     "n_fragments": 257
+    },
+    "native_chunk": {
+     "directory_bytes": 1248,
+     "floor_bytes": 400023,
+     "hit_fragments": 1,
+     "n_fragments": 26
+    },
+    "native_rg": {
+     "directory_bytes": 480,
+     "floor_bytes": 2350071,
+     "hit_fragments": 1,
+     "n_fragments": 10
+    }
+   },
+   "sqlite": {
+    "blob": {
+     "bytes": 16523380,
+     "db_bytes": 16801792,
+     "distinct_ranges": 53,
+     "extract": 400023,
+     "pages": 4034,
+     "reads": 4036
+    },
+    "pages": {
+     "bytes": 450676,
+     "db_bytes": 18886656,
+     "distinct_ranges": 4,
+     "extract": 400023,
+     "pages": 110,
+     "reads": 112
+    }
+   },
+   "src_bytes": 16779953,
+   "src_sha256": "133d70e970692b8f5bc9484ff7a8a7b820ca969da9abcd5cb6d59847c84d266c",
+   "vole_bytes_read": 16780999,
+   "vole_phys_bytes": 16783263,
+   "vole_rss_kb": 69688,
+   "vole_wall_us": 61453
+  },
+  "pdf": {
+   "bytes_returned": 193,
+   "exact_ok": 1,
+   "ideal_floor": 61856,
+   "schemes": {
+    "fixed_16384": {
+     "directory_bytes": 106656,
+     "floor_bytes": 130664,
+     "hit_fragments": 8,
+     "n_fragments": 2222
+    },
+    "fixed_262144": {
+     "directory_bytes": 6672,
+     "floor_bytes": 491112,
+     "hit_fragments": 2,
+     "n_fragments": 139
+    },
+    "fixed_4096": {
+     "directory_bytes": 426624,
+     "floor_bytes": 81512,
+     "hit_fragments": 20,
+     "n_fragments": 8888
+    },
+    "fixed_65536": {
+     "directory_bytes": 26688,
+     "floor_bytes": 228968,
+     "hit_fragments": 4,
+     "n_fragments": 556
+    },
+    "native": {
+     "directory_bytes": 21840,
+     "floor_bytes": 61857,
+     "hit_fragments": 11,
+     "n_fragments": 455
+    }
+   },
+   "sqlite": {
+    "blob": {
+     "bytes": 359911700,
+     "db_bytes": 36446208,
+     "distinct_ranges": 807,
+     "extract": 61856,
+     "pages": 7989,
+     "reads": 87881
+    },
+    "pages": {
+     "bytes": 135284,
+     "db_bytes": 40976384,
+     "distinct_ranges": 9,
+     "extract": 61856,
+     "pages": 29,
+     "reads": 35
+    }
+   },
+   "src_bytes": 36404840,
+   "src_sha256": "d3bd12c2db70c99e7b2ac6340073915818ee8102e64e75d4129736fbb83ccc92",
+   "vole_bytes_read": 36414410,
+   "vole_phys_bytes": 36425406,
+   "vole_rss_kb": 146336,
+   "vole_wall_us": 110675
+  }
+ },
+ "phase": "28.6 \u2014 fragment locality (decision Experiment 2; measurement only)",
+ "phase22_5_historical_control": {
+  "losses": 17,
+  "source": "docs/phases/phase-22-5-results.md",
+  "unresolved": 7,
+  "vole_vs_sqlite_bytes_median_ratio": 3.154,
+  "wins": 0
+ }
+}

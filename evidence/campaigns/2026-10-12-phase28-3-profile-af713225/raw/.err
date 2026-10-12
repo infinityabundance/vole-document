@@ -1,0 +1,7 @@
+[vole-profile] descriptor_read_us=266 descriptor_parse_us=1882 descriptor_len=1105542
+[vole-profile] manifest_read_us=9 field_open_total_us=2171
+[vole-profile] store_open_us=1192 field_open_us=2175 index_open_us=3 session_open_total_us=3370
+[vole-profile-stage] observe_us=18 probe_us=0 lookup_calls=0 index_nodes=0 index_read_us=0 index_parse_us=0 dispatch_us=11 materialize_us=0 select_us=0 source_serve_us=0 clone_bytes=0 referenced_bytes=0 objects_total=0 objects_used=0 serve_calls=0
+[vole-profile] request_loop_total_us=42 observe_dispatch_us=24 observe_calls=1 serialize_us=5
+[malloc-count] allocs=136 bytes=2234359 frees=111
+runstat wall_us=3955 user_us=2741 sys_us=0 maxrss_kb=6352 minflt=736 majflt=0 rc=0

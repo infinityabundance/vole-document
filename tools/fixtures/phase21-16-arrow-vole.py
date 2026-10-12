@@ -14,11 +14,24 @@
 
 import argparse
 import hashlib
+import importlib.util as _ilu
 import json
 import os
 import subprocess
 import sys
 import time
+
+
+def _load_harness():
+    here = os.path.dirname(os.path.abspath(__file__))
+    spec = _ilu.spec_from_file_location("phase28_2_harness",
+                                        os.path.join(here, "phase28-2-harness.py"))
+    mod = _ilu.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod
+
+
+H = _load_harness()
 
 
 def now_us():
@@ -160,6 +173,40 @@ def run(v, plan, outdir):
         json.dump(warm, f)
 
 
+def steady(v, plan, outdir, iters=15, warmup=2):
+    """Steady-state: repeat each question with a warm OS page cache.
+
+    VOLE's unit of execution is a fresh CLI process per question (the `observe`
+    subprocess), so its steady-state is repeated CLI invocations with a warm page
+    cache; each sample still includes the CLI process spawn. Its cold-process and
+    cold-cache therefore coincide and are reported as the court's `cold` column.
+    """
+    os.makedirs(outdir, exist_ok=True)
+    results = {}
+    for q in QS:
+        results[q] = H.steady_state(lambda q=q: _answer_once(v, q, plan, outdir),
+                                    warmup=warmup, iters=iters)
+    with open(os.path.join(outdir, "steady_us.json"), "w") as f:
+        json.dump({"batch": [{"q": k, **val} for k, val in results.items()]}, f,
+                  sort_keys=True)
+
+
+def _answer_once(v, q, plan, outdir):
+    if q == "Q1":
+        return v.q1_column_values(plan)
+    if q == "Q2":
+        return v.q2_predicate_count(plan)
+    if q == "Q3":
+        return v.q3_span_stats(plan)
+    if q == "Q4":
+        return v.q4_batch_count(plan)
+    if q == "Q5":
+        return v.q5_find(plan)
+    if q == "Q6":
+        return v.q6_exact(plan, outdir)
+    raise RuntimeError("unknown question %s" % q)
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser()
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -171,11 +218,26 @@ def main(argv=None):
     r.add_argument("--outdir", required=True)
     r.add_argument("--source", default=None)
     r.add_argument("--packed", action="store_true")
+    st = sub.add_parser("steady")
+    st.add_argument("--bin", required=True)
+    st.add_argument("--store", required=True)
+    st.add_argument("--field", required=True)
+    st.add_argument("--plan", required=True)
+    st.add_argument("--outdir", required=True)
+    st.add_argument("--source", default=None)
+    st.add_argument("--packed", action="store_true")
+    st.add_argument("--iters", type=int, default=15)
+    st.add_argument("--warmup", type=int, default=2)
     args = ap.parse_args(argv)
     if args.cmd == "run":
         plan = json.loads(args.plan)
         v = Vole(args.bin, args.store, args.field, packed=args.packed, source=args.source)
         run(v, plan, args.outdir)
+        return 0
+    if args.cmd == "steady":
+        plan = json.loads(args.plan)
+        v = Vole(args.bin, args.store, args.field, packed=args.packed, source=args.source)
+        steady(v, plan, args.outdir, iters=args.iters, warmup=args.warmup)
         return 0
     return 2
 

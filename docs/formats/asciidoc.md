@@ -11,8 +11,10 @@ feature.
 AsciiDoc has **no magic bytes**, so detection is a documented, conservative
 heuristic that requires an **AsciiDoc-specific structural mark**: a level-0
 document title (`= ` on the first non-blank line followed by at least one further
-block), a `==`+ section, a `|===` table, a complete delimited block, or a block
-attribute line (`[…]`) followed by a block. **Markdown and
+block), a `==`+ section, a `|===` table, a complete delimited block, a block
+attribute line (`[…]`) followed by a block, or an **`xref:`-macro-only
+navigation list** (a list whose entries are `xref:` references, added in **Phase
+28.1**, which converted one stratified-v2 `opaque` finding). **Markdown and
 reStructuredText are tried first**, so a Markdown document stays `Markdown` and a
 reST document stays `Rst`; plain prose stays `Opaque` and round-trips exactly
 through the RAW lane. It runs immediately after reStructuredText and before
@@ -101,8 +103,11 @@ slower vs `conv`** (median 1.07, ratio-of-sums 0.364).
 ## Honest negatives
 
 * **An AsciiDoc-specific mark is required.** Without a document title, `==`
-  section, `|===` table, complete delimited block, or block-attribute line
-  followed by a block, a source is not claimed.
+  section, `|===` table, complete delimited block, block-attribute line followed
+  by a block, or an `xref:`-macro-only navigation list, a source is not claimed.
+  (The `xref:`-only signal is precise: its negations — prose, a bare `[link]`
+  attribute, a single `xref:` inside a paragraph — decline; see
+  `asciidoc::tests::detects_a_cross_reference_list_and_declines_its_negations`.)
 * A single-non-blank-line `====`/`++++`/`....` block is a **reST overline title**,
   so reST (tried first) admits it and it is never reclassified as AsciiDoc.
 * The canonical spaced attribute `:name: value` and unset `:name!:` are **reST
@@ -129,4 +134,7 @@ slower vs `conv`** (median 1.07, ratio-of-sums 0.364).
   (earlier run `…-asciidoc-43a1c327`).
 - Phase 21.26.2 AsciiDoc economic court (exactness 11/11):
   [2026-10-10-phase21-26-2-asciidoc-econ-f0a3a5cf](../../evidence/campaigns/2026-10-10-phase21-26-2-asciidoc-econ-f0a3a5cf/).
+- Stratified real-world population v2, Phase 28.1 `xref:` widening (308/308
+  byte-exact; findings 21 → 15):
+  [2026-10-12-realformats-stratified-v2-941e3d0f](../../evidence/campaigns/2026-10-12-realformats-stratified-v2-941e3d0f/).
 - Results: [phase-21-plan.md](../phases/phase-21-plan.md).

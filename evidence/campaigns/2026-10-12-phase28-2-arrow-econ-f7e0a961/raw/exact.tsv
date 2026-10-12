@@ -1,0 +1,4 @@
+fixture	vole_ok	sqlite_ok	len_ok	sha_ok	cmp_ok	v_us	s_us
+e_small.arrow	true	true	true	true	true	3479	55172
+e_multi.arrow	true	true	true	true	true	3442	55459
+e_large.arrow	true	true	true	true	true	10701	51845

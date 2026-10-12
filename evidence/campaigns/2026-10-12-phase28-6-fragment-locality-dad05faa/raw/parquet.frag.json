@@ -1,0 +1,60 @@
+{
+ "answer_bytes_read": 16780999,
+ "answer_source_span": [
+  4,
+  400027
+ ],
+ "detail": {},
+ "entry_bytes": 48,
+ "fmt": "parquet",
+ "required_bytes": 400023,
+ "required_n_ranges": 1,
+ "required_ranges": [
+  [
+   4,
+   400027
+  ]
+ ],
+ "schemes": {
+  "fixed_16384": {
+   "directory_bytes": 49200,
+   "floor_bytes": 409600,
+   "hit_fragments": 25,
+   "n_fragments": 1025
+  },
+  "fixed_262144": {
+   "directory_bytes": 3120,
+   "floor_bytes": 524288,
+   "hit_fragments": 2,
+   "n_fragments": 65
+  },
+  "fixed_4096": {
+   "directory_bytes": 196656,
+   "floor_bytes": 401408,
+   "hit_fragments": 98,
+   "n_fragments": 4097
+  },
+  "fixed_65536": {
+   "directory_bytes": 12336,
+   "floor_bytes": 458752,
+   "hit_fragments": 7,
+   "n_fragments": 257
+  },
+  "native_chunk": {
+   "directory_bytes": 1248,
+   "floor_bytes": 400023,
+   "hit_fragments": 1,
+   "n_fragments": 26,
+   "unit_count": 25
+  },
+  "native_rg": {
+   "directory_bytes": 480,
+   "floor_bytes": 2350071,
+   "hit_fragments": 1,
+   "n_fragments": 10,
+   "unit_count": 9
+  }
+ },
+ "source": "evidence/scratch/phase28-6-court/corpus/large.parquet",
+ "source_bytes": 16779953
+}

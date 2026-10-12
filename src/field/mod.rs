@@ -51,6 +51,19 @@ pub(crate) fn warm_prof_enabled() -> bool {
     std::env::var_os("VOLE_PROFILE_OPEN").is_some()
 }
 
+/// Phase 28.3 measurement prototype gate (`VOLE_SERVE_SELECTIVE`), compiled only
+/// under the non-default `phase28-3-ablation` feature. It selects the
+/// selection-before-materialization variant of `dag::serve_source_range` for the
+/// paired ablation. It is **not** a production mechanism: the feature is never in
+/// `default`, the env var is off unless explicitly set, and the variant emits
+/// byte-identical output (the court compares it end-to-end). Cached in a
+/// `OnceLock` so a call site pays one relaxed load.
+#[cfg(feature = "phase28-3-ablation")]
+pub(crate) fn selective_serve_enabled() -> bool {
+    static ON: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *ON.get_or_init(|| std::env::var_os("VOLE_SERVE_SELECTIVE").is_some())
+}
+
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::rc::Rc;
