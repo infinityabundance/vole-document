@@ -22,7 +22,9 @@
 
 use std::path::PathBuf;
 
-use vole_document::adapter::arrow::{Value, build_arrow_model, column_values, parse};
+use vole_document::adapter::arrow::{
+    M_END_OF_STREAM, M_RECORD_BATCH, M_SCHEMA, Value, build_arrow_model, column_values, parse,
+};
 use vole_document::container::{Descriptor, ObjectSource};
 use vole_document::dra::{Op, Program};
 use vole_document::error::ErrorClass;
@@ -364,6 +366,105 @@ fn batch_spans_are_exact_and_buffers_are_in_bounds() {
 }
 
 #[test]
+fn stream_framing_is_detected_and_messages_are_ordered_and_exact() {
+    // Phase 27.5: a bare, magic-less IPC stream is claimed by its own framing.
+    assert_eq!(
+        detect_document_format(STREAM, Limits::DEFAULT),
+        DocumentFormat::ArrowIpc
+    );
+    let model = parse(STREAM, Limits::DEFAULT).unwrap();
+    assert!(model.stream);
+    // The ordered message inventory: Schema, RecordBatch, RecordBatch, EOS.
+    let kinds: Vec<i32> = model.messages.iter().map(|m| m.kind).collect();
+    assert_eq!(
+        kinds,
+        [M_SCHEMA, M_RECORD_BATCH, M_RECORD_BATCH, M_END_OF_STREAM]
+    );
+    // The first message is the framing schema at offset 0, with no body.
+    assert_eq!(model.messages[0].offset, 0);
+    assert_eq!(model.messages[0].span_start, 0);
+    assert!(model.messages[0].meta_len > 0);
+    assert_eq!(model.messages[0].body_len, 0);
+    // The messages are contiguous and cover the whole source exactly.
+    let mut prev = 0u64;
+    for m in &model.messages {
+        assert_eq!(m.span_start, prev, "messages must be contiguous");
+        assert!(m.span_end > m.span_start);
+        assert!(m.span_end <= STREAM.len() as u64);
+        prev = m.span_end;
+    }
+    assert_eq!(prev, STREAM.len() as u64, "messages must cover the source");
+    // The end-of-stream marker is the 8-byte terminator, no metadata/body.
+    let eos = model.messages.last().unwrap();
+    assert_eq!(eos.kind, M_END_OF_STREAM);
+    assert_eq!(eos.span_end - eos.span_start, 8);
+    assert_eq!(eos.meta_len, 0);
+    assert_eq!(eos.body_len, 0);
+    // The record-batch messages line up exactly with the batch inventory.
+    assert_eq!(model.batches.len(), 2);
+    let rb: Vec<_> = model
+        .messages
+        .iter()
+        .filter(|m| m.kind == M_RECORD_BATCH)
+        .collect();
+    for (m, b) in rb.iter().zip(model.batches.iter()) {
+        assert_eq!((m.span_start, m.span_end), (b.span_start, b.span_end));
+        assert_eq!(m.offset, b.offset);
+        assert_eq!(m.meta_len, b.meta_len);
+        assert_eq!(m.body_offset, b.body_offset);
+        assert_eq!(m.body_len, b.body_len);
+    }
+    // The message inventory is stream-only; the file format carries none (and its
+    // model bytes are therefore unchanged).
+    let file = parse(MULTI_BATCH, Limits::DEFAULT).unwrap();
+    assert!(!file.stream);
+    assert!(file.messages.is_empty());
+}
+
+#[test]
+fn stream_near_misses_decline_to_opaque() {
+    // A random `0xFFFFFFFF`-prefixed blob is not a stream.
+    let mut junk = vec![0xFFu8; 4];
+    let mut x: u64 = 0xDEAD_BEEF_1234_5678;
+    for _ in 0..240 {
+        x ^= x << 13;
+        x ^= x >> 7;
+        x ^= x << 17;
+        junk.push((x & 0xFF) as u8);
+    }
+    assert_eq!(
+        detect_document_format(&junk, Limits::DEFAULT),
+        DocumentFormat::Opaque
+    );
+    // A truncated stream (cut inside the schema metadata, before the EOS) is not.
+    assert_eq!(
+        detect_document_format(&STREAM[..64], Limits::DEFAULT),
+        DocumentFormat::Opaque
+    );
+    // A stream whose first message is a RecordBatch (schema stripped) is not: the
+    // first message must be the framing Schema.
+    let model = parse(STREAM, Limits::DEFAULT).unwrap();
+    let schema_end = model.messages[0].span_end as usize;
+    assert_eq!(
+        detect_document_format(&STREAM[schema_end..], Limits::DEFAULT),
+        DocumentFormat::Opaque
+    );
+    // The legacy pre-0.15 no-continuation framing is deliberately declined: a bare
+    // `int32` metadata size is not anchored enough for a magic-less claim.
+    let meta_len = model.messages[0].meta_len as u32;
+    let mut legacy = Vec::new();
+    legacy.extend_from_slice(&meta_len.to_le_bytes());
+    legacy.extend_from_slice(&STREAM[8..schema_end]);
+    legacy.extend_from_slice(&STREAM[STREAM.len() - 8..]);
+    assert_eq!(
+        detect_document_format(&legacy, Limits::DEFAULT),
+        DocumentFormat::Opaque
+    );
+    // A bare stream still parses; its exact leaf is the whole source (Phase 27.5).
+    assert!(parse(STREAM, Limits::DEFAULT).is_ok());
+}
+
+#[test]
 fn native_and_common_selectors_resolve() {
     let mut fx = Fixture::new("selectors", PRIMITIVES);
     assert_eq!(fx.report.format, DocumentFormat::ArrowIpc);
@@ -529,6 +630,62 @@ fn removal_then_fresh_process_is_queryable_and_exact() {
     assert_eq!(exact.len(), PRIMITIVES.len());
     assert_eq!(sha256(&exact), sha256(PRIMITIVES));
     assert_eq!(exact, PRIMITIVES);
+    drop(store2);
+    std::fs::remove_dir_all(&root).ok();
+}
+
+#[test]
+fn stream_exact_materialization_after_removal_is_byte_identical() {
+    // Phase 27.5: the bare stream's exact leaf is the whole source, closed after the
+    // source and the descriptor are deleted, in a fresh store.
+    let root = temp_dir("stream-removal");
+    let src_path = root.join("data.stream");
+    let desc_path = root.join("data.voldoc");
+    std::fs::write(&src_path, STREAM).unwrap();
+    let descriptor = opaque_descriptor(STREAM);
+    std::fs::write(&desc_path, &descriptor).unwrap();
+
+    let store_root = root.join("store");
+    let field_id = {
+        let mut store = FieldStore::open(&store_root).unwrap();
+        let report = ingest_pdf(&mut store, &descriptor, Limits::DEFAULT).unwrap();
+        assert_eq!(report.format, DocumentFormat::ArrowIpc);
+        report.field
+    };
+
+    std::fs::remove_file(&src_path).unwrap();
+    std::fs::remove_file(&desc_path).unwrap();
+
+    let mut store2 = FieldStore::open(&store_root).unwrap();
+    let meta = answer_json(&observe_ok(
+        &mut store2,
+        &field_id,
+        Selector::Metadata,
+        Representation::Metadata,
+    ));
+    assert!(meta.contains("\"stream\":true"));
+    assert!(meta.contains("\"kind\":\"Schema\""));
+    assert!(meta.contains("\"kind\":\"RecordBatch\""));
+    assert!(meta.contains("\"kind\":\"EndOfStream\""));
+
+    let field = Field::open(&store2, &field_id, Limits::DEFAULT).unwrap();
+    // ADR-0060: the stream's model node reads the source, so it depends on the exact
+    // `sha256(source)` root (`DocumentExact`), even for the bare stream framing.
+    let manifest = field.manifest().clone();
+    let exact_root = manifest.root_node;
+    let root_node = load_node(store2.seeds(), &exact_root).unwrap();
+    assert_eq!(root_node.kind, NodeKind::DocumentExact);
+    let istore = FsIndexStore::open(store2.root()).unwrap();
+    let iroot = NodeId::from_bytes(manifest.index_root);
+    let entries = lookup(&istore, &iroot, &SelectorKey::new(SEL_ARROW_MODEL, 0)).unwrap();
+    let model = load_node(store2.seeds(), &entries[0].node_id).unwrap();
+    assert_eq!(model.kind, NodeKind::ArrowModel);
+    assert_eq!(model.deps, vec![exact_root]);
+
+    let exact = field.materialize_exact(Limits::DEFAULT).unwrap();
+    assert_eq!(exact.len(), STREAM.len());
+    assert_eq!(sha256(&exact), sha256(STREAM));
+    assert_eq!(exact, STREAM);
     drop(store2);
     std::fs::remove_dir_all(&root).ok();
 }
@@ -746,5 +903,25 @@ fn random_bytes_never_panic() {
                 let _ = column_values(&buf, &m, i, Limits::STRICT);
             }
         }
+    }
+    // Random bytes that begin with the stream continuation marker must also not
+    // panic, and only a genuine framing may be claimed (conservative detection).
+    let mut x3: u64 = 0xFEED_FACE_CAFE_D00D;
+    for _ in 0..256 {
+        let mut buf = vec![0u8; 256];
+        buf[0..4].copy_from_slice(&0xFFFF_FFFFu32.to_le_bytes());
+        for b in buf.iter_mut().skip(4) {
+            x3 ^= x3 << 13;
+            x3 ^= x3 >> 7;
+            x3 ^= x3 << 17;
+            *b = (x3 & 0xFF) as u8;
+        }
+        let _ = detect_document_format(&buf, Limits::DEFAULT);
+        if let Ok(m) = parse(&buf, Limits::STRICT) {
+            for i in 0..m.leaves.len() as u32 {
+                let _ = column_values(&buf, &m, i, Limits::STRICT);
+            }
+        }
+        let _ = build_arrow_model(&buf, Limits::STRICT);
     }
 }

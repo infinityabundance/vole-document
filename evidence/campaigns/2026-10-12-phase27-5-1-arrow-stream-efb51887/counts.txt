@@ -1,0 +1,7 @@
+fixtures 7
+normal 2
+exact_ok 2
+opaque_controls_ok 5
+opaque_controls 5
+surface_fail 0
+binary 61270bae95d3b3e02bdc173f9bad1579cf55cc7821e811b29aec563a9d7a06c3

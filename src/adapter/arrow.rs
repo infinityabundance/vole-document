@@ -11,7 +11,7 @@
 //! ## What this adapter is
 //!
 //! A **bounded, dependency-free** reader of the Arrow IPC physical layout. It
-//! parses the Flatbuffers `Footer` (file format) or the leading `Schema` message
+//! parses the Flatbuffers `Footer` (file format) or the framing `Schema` message
 //! (stream format), exposes the schema (field names, type tags/parameters,
 //! nullability, children), a record-batch inventory with each batch's **exact
 //! source span**, and decodes a documented subset of the columnar buffers with
@@ -22,9 +22,12 @@
 //!
 //! * **Formats:** the IPC **file** format (`ARROW1` magic + padded align + embedded
 //!   stream with EOS + footer + little-endian int32 footer length + trailing
-//!   `ARROW1`) and the IPC **stream** format when the leading `ARROW1` magic is
-//!   present (magic + messages + EOS, no footer). A bare stream without the magic
-//!   is not detectable and stays `Opaque`.
+//!   `ARROW1`) and the IPC **stream** format — the bare, magic-less sequence of
+//!   encapsulated messages (`[u32 0xFFFFFFFF continuation][u32 metadata_size]
+//!   [FlatBuffer Message][padding][body]`, starting with a `Schema` message and
+//!   ending with an end-of-stream message). The historical VOLE convenience of a
+//!   leading `ARROW1`+padding prefix before a stream is **retired**: a stream is
+//!   now recognized by its own framing (Phase 27.5).
 //! * **Types decoded:** `Int` (8/16/32/64, signed/unsigned), `FloatingPoint`
 //!   (half/single/double), `Boolean`, `Date`, `Time`, `Timestamp`, `Duration` (as
 //!   raw integers), `Utf8`/`LargeUtf8`, `Binary`/`LargeBinary`, `FixedSizeBinary`,
@@ -144,6 +147,27 @@ pub const H_SCHEMA: i32 = 1;
 pub const H_DICTIONARY_BATCH: i32 = 2;
 /// Message header: `RecordBatch`.
 pub const H_RECORD_BATCH: i32 = 3;
+
+// --- Modelled message kinds (the ordering inventory, Phase 27.5) -------------
+/// A framing `Schema` message.
+pub const M_SCHEMA: i32 = 1;
+/// A `DictionaryBatch` message.
+pub const M_DICTIONARY_BATCH: i32 = 2;
+/// A `RecordBatch` message.
+pub const M_RECORD_BATCH: i32 = 3;
+/// The end-of-stream message (`metadata_size == 0`, no body).
+pub const M_END_OF_STREAM: i32 = 4;
+
+/// Stable name of a modelling message kind.
+pub const fn message_kind_name(kind: i32) -> &'static str {
+    match kind {
+        M_SCHEMA => "Schema",
+        M_DICTIONARY_BATCH => "DictionaryBatch",
+        M_RECORD_BATCH => "RecordBatch",
+        M_END_OF_STREAM => "EndOfStream",
+        _ => "Unknown",
+    }
+}
 
 /// Stable name of an Arrow `Type` union tag.
 pub const fn type_name(tag: i32) -> &'static str {
@@ -290,6 +314,36 @@ pub struct BatchDesc {
     pub compression: i32,
 }
 
+/// One encapsulated IPC message's exact placement in the source (Phase 27.5).
+///
+/// This is the *ordering inventory* of a **stream**-framed source: the framing
+/// `Schema` message, each `DictionaryBatch`/`RecordBatch`, and the end-of-stream
+/// marker, each with its exact byte span. The record-batch inventory, schema, and
+/// decoded values are unchanged; this adds the message sequence the stream format
+/// is actually made of. It is populated only for the stream format (`stream ==
+/// true`), so the file-format model bytes are byte-identical to before.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MessageDesc {
+    /// The message kind ([`M_SCHEMA`], [`M_DICTIONARY_BATCH`], [`M_RECORD_BATCH`],
+    /// or [`M_END_OF_STREAM`]).
+    pub kind: i32,
+    /// The message start offset (the continuation token) in the source. For the
+    /// end-of-stream marker this is still the continuation token offset.
+    pub offset: u64,
+    /// The encapsulated metadata size (0 for the end-of-stream marker).
+    pub meta_len: u64,
+    /// The body start offset in the source (the 8-aligned end of the metadata).
+    pub body_offset: u64,
+    /// The declared body length (0 for the schema and end-of-stream markers).
+    pub body_len: u64,
+    /// The exact source span `[span_start, span_end)` of the whole message:
+    /// the 8-byte prefix + metadata + padding + body (for the end-of-stream
+    /// marker the 8-byte prefix alone).
+    pub span_start: u64,
+    /// One past the exact source span.
+    pub span_end: u64,
+}
+
 /// The canonical derived Arrow model (the materialization of an `ArrowModel`).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ArrowModel {
@@ -309,6 +363,9 @@ pub struct ArrowModel {
     pub leaves: Vec<LeafColumn>,
     /// The record batches.
     pub batches: Vec<BatchDesc>,
+    /// The ordered encapsulated messages (stream format only; empty for the file
+    /// format, whose model bytes are therefore unchanged).
+    pub messages: Vec<MessageDesc>,
 }
 
 impl ArrowModel {
@@ -376,6 +433,20 @@ impl ArrowModel {
             out.extend_from_slice(&b.num_nodes.to_le_bytes());
             out.extend_from_slice(&b.num_buffers.to_le_bytes());
             out.extend_from_slice(&b.compression.to_le_bytes());
+        }
+        // The message inventory is a **stream-only** addition: the file-format model
+        // bytes stay byte-identical to the pre-27.5 encoding.
+        if self.stream {
+            out.extend_from_slice(&(self.messages.len() as u32).to_le_bytes());
+            for m in &self.messages {
+                out.extend_from_slice(&m.kind.to_le_bytes());
+                out.extend_from_slice(&m.offset.to_le_bytes());
+                out.extend_from_slice(&m.meta_len.to_le_bytes());
+                out.extend_from_slice(&m.body_offset.to_le_bytes());
+                out.extend_from_slice(&m.body_len.to_le_bytes());
+                out.extend_from_slice(&m.span_start.to_le_bytes());
+                out.extend_from_slice(&m.span_end.to_le_bytes());
+            }
         }
         out
     }
@@ -496,6 +567,36 @@ impl ArrowModel {
                 compression,
             });
         }
+        // The message inventory is present only for the stream format.
+        let mut messages = Vec::new();
+        if stream {
+            let mc = r.u32()?;
+            if mc > MAX_MODEL_BATCHES {
+                return Err(corrupt("model message count is implausible"));
+            }
+            messages.reserve(mc as usize);
+            for _ in 0..mc {
+                let kind = r.i32()?;
+                let offset = r.u64()?;
+                let meta_len = r.u64()?;
+                let body_offset = r.u64()?;
+                let body_len = r.u64()?;
+                let span_start = r.u64()?;
+                let span_end = r.u64()?;
+                if span_start > span_end || span_end > doc_len {
+                    return Err(corrupt("model message span is outside the document"));
+                }
+                messages.push(MessageDesc {
+                    kind,
+                    offset,
+                    meta_len,
+                    body_offset,
+                    body_len,
+                    span_start,
+                    span_end,
+                });
+            }
+        }
         if !r.at_end() {
             return Err(corrupt("model has trailing bytes"));
         }
@@ -508,6 +609,7 @@ impl ArrowModel {
             schema,
             leaves,
             batches,
+            messages,
         })
     }
 }
@@ -1246,13 +1348,24 @@ fn make_leaf(f: &FieldNode, element: u32, base: i64) -> LeafColumn {
 
 /// A pure, bounded, byte-level Arrow IPC detector.
 ///
-/// True iff the source starts with the `ARROW1` magic (6 bytes, optionally
-/// followed by up to 2 padding bytes to the 8-byte boundary), and is either:
-/// * the **file** format — the source ends with the `ARROW1` magic preceded by a
-///   little-endian `int32` footer length consistent with the file length (the
-///   footer region begins no earlier than the 8-byte magic+padding prefix); or
-/// * the **stream** format — a valid encapsulated `Schema` message begins at the
-///   8-byte prefix (continuation token `0xFFFFFFFF` + a metadata size that fits).
+/// True iff the source is either:
+/// * the **file** format — the source starts with the `ARROW1` magic, ends with the
+///   `ARROW1` magic, and the 4 bytes before the trailing magic are a little-endian
+///   `int32` footer length consistent with the file length (the footer region
+///   begins no earlier than the 8-byte magic+padding prefix); or
+/// * the **stream** format — a coherent sequence of encapsulated messages:
+///   a continuation-marked framing `Schema` message first (whose FlatBuffer
+///   metadata parses under the bounded reader), then well-formed
+///   `RecordBatch`/`DictionaryBatch` messages, ending in an end-of-stream marker.
+///   This is the **bare, magic-less** framing, and also the historical
+///   magic+padding-prefixed form (the messages then begin at the 8-byte prefix).
+///
+/// The legacy pre-0.15 **no-continuation** stream framing (a bare `int32` metadata
+/// size with no `0xFFFFFFFF` token) is deliberately **declined**: a magic-less
+/// source has no other anchor, so treating an arbitrary leading word as a length
+/// would widen the false-positive surface, and the same build's stream parser only
+/// admits the continuation form. A random `0xFFFFFFFF`-prefixed blob, a truncated
+/// stream, and a stream whose first message is not a `Schema` all decline.
 ///
 /// It never decodes a buffer.
 pub fn detect(source: &[u8], limits: Limits) -> bool {
@@ -1263,37 +1376,109 @@ pub fn detect(source: &[u8], limits: Limits) -> bool {
     if n < 16 {
         return false;
     }
-    if &source[0..6] != MAGIC {
-        return false;
-    }
-    // A trailing `ARROW1` magic commits the source to the **file** format: the 4
-    // bytes before it must be a footer length consistent with the file length.
-    if &source[n - 6..n] == MAGIC {
-        let fl = u32::from_le_bytes([source[n - 10], source[n - 9], source[n - 8], source[n - 7]]);
-        if u64::from(fl) > limits.max_arrow_metadata_bytes {
-            return false;
+    if &source[0..6] == MAGIC {
+        // A trailing `ARROW1` magic commits the source to the **file** format: the 4
+        // bytes before it must be a footer length consistent with the file length.
+        if &source[n - 6..n] == MAGIC {
+            let fl =
+                u32::from_le_bytes([source[n - 10], source[n - 9], source[n - 8], source[n - 7]]);
+            if u64::from(fl) > limits.max_arrow_metadata_bytes {
+                return false;
+            }
+            return match n.checked_sub(10 + fl as usize) {
+                Some(start) => start >= 8,
+                None => false,
+            };
         }
-        return match n.checked_sub(10 + fl as usize) {
-            Some(start) => start >= 8,
-            None => false,
-        };
+        // No trailing magic: the historical magic+padding-prefixed stream form; the
+        // encapsulated messages begin at the 8-byte prefix.
+        return stream_sequence_ok(source, 8, limits);
     }
-    // No trailing magic: the **stream** format, which must begin with the 8-byte
-    // magic+padding prefix followed by a valid encapsulated `Schema` message.
-    stream_schema_ok(source, limits)
+    // Not the file magic: a **bare (magic-less) IPC stream** whose encapsulated
+    // messages begin at offset 0.
+    stream_sequence_ok(source, 0, limits)
 }
 
-fn stream_schema_ok(source: &[u8], limits: Limits) -> bool {
-    let msg = match parse_msg(source, 8, limits) {
+/// True iff `source[start..]` is a coherent encapsulated-message sequence: a
+/// continuation-marked framing `Schema` message first (parsed under the bounded
+/// reader), then well-formed known messages, ending in an end-of-stream marker.
+///
+/// This is the strong, conservative gate for the stream format: it requires both
+/// a valid leading `Schema` and a coherent end-of-stream, so a random
+/// `0xFFFFFFFF`-prefixed blob, a truncated stream, or a non-`Schema` first
+/// message all decline.
+fn stream_sequence_ok(source: &[u8], start: usize, limits: Limits) -> bool {
+    let n = source.len();
+    // The first message must be the framing `Schema`, and its metadata must parse.
+    let first = match parse_msg(source, start, limits) {
         Ok(m) => m,
         Err(_) => return false,
     };
-    if msg.header_type != H_SCHEMA {
+    if first.header_type != H_SCHEMA {
         return false;
     }
-    match msg.header() {
-        Ok(t) => parse_schema(&msg.fb, t, limits).is_ok(),
-        Err(_) => false,
+    match first.header() {
+        Ok(t) => {
+            if parse_schema(&first.fb, t, limits).is_err() {
+                return false;
+            }
+        }
+        Err(_) => return false,
+    }
+    // Walk the messages to a coherent end-of-stream.
+    let mut pos = start;
+    let mut budget = limits.max_arrow_messages as u64;
+    loop {
+        if pos.checked_add(8).map(|e| e > n).unwrap_or(true) {
+            // Ran out of bytes without an end-of-stream marker.
+            return false;
+        }
+        let cont = u32::from_le_bytes([
+            source[pos],
+            source[pos + 1],
+            source[pos + 2],
+            source[pos + 3],
+        ]);
+        let mlen = u32::from_le_bytes([
+            source[pos + 4],
+            source[pos + 5],
+            source[pos + 6],
+            source[pos + 7],
+        ]);
+        if cont == CONTINUATION && mlen == 0 {
+            // A coherent end-of-stream marker terminates the sequence.
+            return true;
+        }
+        if cont != CONTINUATION {
+            return false;
+        }
+        let msg = match parse_msg(source, pos, limits) {
+            Ok(m) => m,
+            Err(_) => return false,
+        };
+        if !matches!(
+            msg.header_type,
+            H_SCHEMA | H_DICTIONARY_BATCH | H_RECORD_BATCH
+        ) {
+            return false;
+        }
+        if budget == 0 {
+            return false;
+        }
+        budget -= 1;
+        let body_off = match msg.body_offset() {
+            Ok(o) => o,
+            Err(_) => return false,
+        };
+        let body_len = match usize::try_from(msg.body_len) {
+            Ok(l) => l,
+            Err(_) => return false,
+        };
+        let next = match body_off.checked_add(body_len) {
+            Some(x) if x > pos && x <= n => x,
+            _ => return false,
+        };
+        pos = next;
     }
 }
 
@@ -1313,14 +1498,20 @@ pub fn parse(source: &[u8], limits: Limits) -> Result<ArrowModel> {
     if n < 16 {
         return Err(corrupt("file is shorter than the Arrow minimum"));
     }
-    if &source[0..6] != MAGIC {
-        return Err(corrupt("missing ARROW1 magic prefix"));
+    if &source[0..6] == MAGIC {
+        // File format (trailing magic) or the historical magic-prefixed stream.
+        if let Some(footer_start) = file_footer_start(source, limits)? {
+            return parse_file(source, footer_start, limits);
+        }
+        return parse_stream(source, 8, limits);
     }
-    if let Some(footer_start) = file_footer_start(source, limits)? {
-        parse_file(source, footer_start, limits)
-    } else {
-        parse_stream(source, limits)
+    // A bare (magic-less) IPC stream: the encapsulated messages begin at offset 0.
+    if source.len() >= 4
+        && u32::from_le_bytes([source[0], source[1], source[2], source[3]]) == CONTINUATION
+    {
+        return parse_stream(source, 0, limits);
     }
+    Err(corrupt("missing ARROW1 magic prefix"))
 }
 
 /// The footer start offset for the file format, or `None` for the stream format.
@@ -1391,6 +1582,7 @@ fn finish_model(
     let leaves = build_leaves(&schema, &mut indexable, limits)?;
 
     let mut batches: Vec<BatchDesc> = Vec::new();
+    let mut messages: Vec<MessageDesc> = Vec::new();
     let mut total_rows: u64 = 0;
     let mut message_budget = limits.max_arrow_messages as u64;
 
@@ -1452,7 +1644,6 @@ fn finish_model(
         }
         FileBatchSource::Stream(start) => {
             let mut pos = start;
-            let mut saw_schema = false;
             loop {
                 if pos.checked_add(8).map(|e| e > n).unwrap_or(true) {
                     break;
@@ -1470,24 +1661,30 @@ fn finish_model(
                     source[pos + 7],
                 ]);
                 if cont == CONTINUATION && mlen == 0 {
-                    // End-of-stream marker.
+                    // End-of-stream marker: the 8-byte prefix alone, no metadata/body.
+                    messages.push(MessageDesc {
+                        kind: M_END_OF_STREAM,
+                        offset: pos as u64,
+                        meta_len: 0,
+                        body_offset: (pos + 8) as u64,
+                        body_len: 0,
+                        span_start: pos as u64,
+                        span_end: (pos + 8) as u64,
+                    });
                     break;
                 }
                 if cont != CONTINUATION {
-                    // Tolerate a leading length (pre-0.15 streams) only before the
-                    // schema message.
+                    // Only the continuation framing is modelled; the legacy
+                    // no-continuation framing is declined (see `detect`).
                     return Err(corrupt("missing stream continuation marker"));
                 }
                 let msg = parse_msg(source, pos, limits)?;
-                match msg.header_type {
-                    H_SCHEMA => {
-                        if !saw_schema {
-                            saw_schema = true;
-                        }
-                    }
+                let kind = match msg.header_type {
+                    H_SCHEMA => M_SCHEMA,
                     H_RECORD_BATCH => {
                         let desc = batch_desc_from_msg(source, pos, &msg, limits)?;
                         push_batch(desc, &mut batches, &mut total_rows, &mut message_budget)?;
+                        M_RECORD_BATCH
                     }
                     H_DICTIONARY_BATCH => {
                         // Dictionaries are recorded implicitly; the fields that use
@@ -1498,26 +1695,36 @@ fn finish_model(
                             ));
                         }
                         message_budget -= 1;
+                        M_DICTIONARY_BATCH
                     }
                     other => {
                         return Err(Error::unsupported_feature(format!(
                             "Arrow message header {other} is not supported"
                         )));
                     }
-                }
+                };
                 let body_off = msg.body_offset()?;
                 let body_len = usize::try_from(msg.body_len)
                     .map_err(|_| Error::resource_limit("Arrow body length is implausible"))?;
                 let next = body_off
                     .checked_add(body_len)
                     .ok_or_else(|| corrupt("message advance overflows"))?;
-                if next <= pos || next > n {
-                    // A zero-advance or overrun stream is corrupt/truncated: stop.
-                    if next > n {
-                        return Err(corrupt("stream message body is out of bounds"));
-                    }
+                if next > n {
+                    return Err(corrupt("stream message body is out of bounds"));
+                }
+                if next <= pos {
+                    // A zero-advance stream is corrupt/truncated: stop.
                     break;
                 }
+                messages.push(MessageDesc {
+                    kind,
+                    offset: pos as u64,
+                    meta_len: msg.meta_len as u64,
+                    body_offset: body_off as u64,
+                    body_len: body_len as u64,
+                    span_start: pos as u64,
+                    span_end: next as u64,
+                });
                 pos = next;
             }
         }
@@ -1532,13 +1739,13 @@ fn finish_model(
         schema,
         leaves,
         batches,
+        messages,
     })
 }
 
-fn parse_stream(source: &[u8], limits: Limits) -> Result<ArrowModel> {
-    let n = source.len();
-    // The first message (at the 8-byte prefix) must be the schema.
-    let msg = parse_msg(source, 8, limits)?;
+fn parse_stream(source: &[u8], start: usize, limits: Limits) -> Result<ArrowModel> {
+    // The first message must be the framing schema.
+    let msg = parse_msg(source, start, limits)?;
     if msg.header_type != H_SCHEMA {
         return Err(corrupt("stream does not begin with a schema message"));
     }
@@ -1547,8 +1754,7 @@ fn parse_stream(source: &[u8], limits: Limits) -> Result<ArrowModel> {
     let version = msg.fb.field_i16(msg.root, 0)?.unwrap_or(0) as i32;
     let mut schema = Vec::new();
     flatten_fields(&raw, &mut schema, 0, u32::MAX, limits)?;
-    // Re-scan from the schema message to enumerate batches.
-    let _ = n;
+    // Re-scan from the schema message to enumerate batches and messages.
     finish_model(
         source,
         limits,
@@ -1556,7 +1762,7 @@ fn parse_stream(source: &[u8], limits: Limits) -> Result<ArrowModel> {
         endianness,
         true,
         schema,
-        FileBatchSource::Stream(8),
+        FileBatchSource::Stream(start),
         &msg.fb,
     )
 }
@@ -2395,6 +2601,15 @@ mod tests {
                 num_nodes: 1,
                 num_buffers: 2,
                 compression: -1,
+            }],
+            messages: vec![MessageDesc {
+                kind: M_SCHEMA,
+                offset: 0,
+                meta_len: 24,
+                body_offset: 32,
+                body_len: 0,
+                span_start: 0,
+                span_end: 32,
             }],
         };
         let enc = m.encode();

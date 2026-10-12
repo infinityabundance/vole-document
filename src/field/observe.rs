@@ -47,7 +47,8 @@ use crate::adapter::arrow::{
     ArrowModel, LeafColumn as ArrowLeaf, Value as ArrowValue, batch_detail as arrow_batch_detail,
     cell_value as arrow_cell_value, column_bytes as arrow_column_bytes,
     column_span as arrow_column_span, column_values as arrow_column_values,
-    type_name as arrow_type_name, value_text as arrow_value_text,
+    message_kind_name as arrow_message_kind_name, type_name as arrow_type_name,
+    value_text as arrow_value_text,
 };
 #[cfg(feature = "asciidoc")]
 use crate::adapter::asciidoc::{
@@ -21454,17 +21455,37 @@ impl<S: SeedStore> Ctx<'_, S> {
         let (model, model_id) = self.arrow_model()?;
         let (_source, root) = self.arrow_source()?;
         let rows: i64 = model.batches.iter().map(|b| b.num_rows.max(0)).sum();
+        let messages: Vec<String> = model
+            .messages
+            .iter()
+            .map(|m| {
+                format!(
+                    concat!(
+                        "{{\"kind\":\"{}\",\"span\":[{},{}]",
+                        ",\"metadata\":{},\"body\":[{},{}]}}"
+                    ),
+                    arrow_message_kind_name(m.kind),
+                    m.span_start,
+                    m.span_end,
+                    m.meta_len,
+                    m.body_offset,
+                    m.body_len
+                )
+            })
+            .collect();
         let value = AnswerValue::Json(format!(
             concat!(
                 "{{\"format\":\"arrow\",\"stream\":{},\"version\":{}",
-                ",\"columns\":{},\"batches\":{},\"rows\":{},\"bytes\":{}}}"
+                ",\"columns\":{},\"batches\":{},\"rows\":{},\"bytes\":{}",
+                ",\"messages\":[{}]}}"
             ),
             model.stream,
             model.version,
             model.leaves.len(),
             model.batches.len(),
             rows,
-            model.doc_len
+            model.doc_len,
+            messages.join(",")
         ));
         Ok(self.arrow_answer(
             req,

@@ -1,0 +1,8 @@
+docker compose run --rm --no-TTY dev sh tools/phase27-5-1-arrow-stream-court.sh
+# inside the court:
+#   cargo build --locked --all-features
+#   target/debug/vole-document field-build FIXTURE --store STORE --voldoc F.voldoc
+#   target/debug/vole-document observe --store STORE --field HEX --metadata --kind metadata
+#   target/debug/vole-document observe --store STORE --field HEX (--arrow-schema|--arrow-column N|--arrow-batch N|--arrow-cell R:C) --kind metadata|text
+#   rm source F.voldoc
+#   target/debug/vole-document materialize --store STORE --field HEX --exact --output OUT ; cmp OUT source
