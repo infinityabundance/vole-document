@@ -358,6 +358,10 @@ fn run(args: &[String]) -> Result<()> {
         "observe" => cmd_field_observe(args, limits),
         #[cfg(feature = "field")]
         "observe-batch" => cmd_field_observe_batch(args, limits),
+        #[cfg(feature = "field")]
+        "coarse-index" => cmd_coarse_index(args, limits),
+        #[cfg(feature = "field")]
+        "coarse-read" => cmd_coarse_read(args, limits),
         #[cfg(all(feature = "field", feature = "arrow"))]
         "arrow-fused" => cmd_arrow_fused(args, limits),
         #[cfg(all(
@@ -5690,6 +5694,112 @@ fn cmd_field_observe_batch(args: &[String], limits: Limits) -> Result<()> {
         return Err(Error::internal_invariant(
             "observe-batch: no request was answered",
         ));
+    }
+    Ok(())
+}
+
+/// `coarse-index --store DIR --field HEX [--packed]`.
+///
+/// Build and persist the Phase 29.2 coarse structural directory for a field and
+/// print its size and fraction of the store. The index is an optional side
+/// structure: a field without it is unaffected.
+fn cmd_coarse_index(args: &[String], limits: Limits) -> Result<()> {
+    let out = parse_field_args(args)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("coarse-index requires --store DIR"))?;
+    let field_hex = out
+        .field
+        .as_deref()
+        .ok_or_else(|| Error::usage("coarse-index requires --field HEX"))?;
+    let rep = vole_document::field::coarse::build(store_dir, out.packed, field_hex, limits)?;
+    println!(
+        concat!(
+            "{{\"format\":\"{}\",\"units\":{},\"native_units\":{},",
+            "\"index_bytes\":{},\"store_bytes\":{},\"fraction\":{:.6},\"path\":\"{}\"}}"
+        ),
+        rep.format,
+        rep.units,
+        rep.native_units,
+        rep.index_bytes,
+        rep.store_bytes,
+        rep.fraction,
+        json_escape(&rep.path)
+    );
+    Ok(())
+}
+
+/// `coarse-read --store DIR --field HEX [--packed] --requests FILE [--use-map]`.
+///
+/// Serve each pre-registered narrow request from the coarse index with real
+/// `pread` range reads, printing the honest closure; fall back to the full
+/// descriptor read when the plan cannot cover the request. `--use-map` uses the
+/// persisted dependency map and falls back on any coverage miss.
+fn cmd_coarse_read(args: &[String], limits: Limits) -> Result<()> {
+    use std::fs::File;
+    use std::io::{BufRead, BufReader};
+
+    let use_map = args.iter().any(|a| a == "--use-map");
+    let filtered: Vec<String> = args
+        .iter()
+        .filter(|a| a.as_str() != "--use-map")
+        .cloned()
+        .collect();
+    let out = parse_field_args(&filtered)?;
+    let store_dir = out
+        .store
+        .as_deref()
+        .ok_or_else(|| Error::usage("coarse-read requires --store DIR"))?;
+    let field_hex = out
+        .field
+        .as_deref()
+        .ok_or_else(|| Error::usage("coarse-read requires --field HEX"))?;
+    let reader: Box<dyn BufRead> = match out.requests.as_deref() {
+        Some(p) if p != Path::new("-") => Box::new(BufReader::new(File::open(p)?)),
+        _ => Box::new(BufReader::new(std::io::stdin())),
+    };
+    let mut requests: Vec<(String, ObserveRequest)> = Vec::new();
+    for line in reader.lines() {
+        let line = line?;
+        let line = line.trim().to_string();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let mut la = vec!["vole-document".to_string(), "observe".to_string()];
+        la.extend(line.split_whitespace().map(str::to_string));
+        let lo = parse_field_args(&la)?;
+        let selector = field_selector(&lo)?;
+        let kind = lo
+            .kind
+            .as_deref()
+            .ok_or_else(|| Error::usage("coarse-read: each request needs --kind KIND"))?;
+        let req = observe_request(&lo, selector, field_representation(kind)?);
+        requests.push((line, req));
+    }
+    let rows = vole_document::field::coarse::read(
+        store_dir, out.packed, field_hex, &requests, use_map, limits,
+    )?;
+    println!(
+        "request\toutcome\tunits_read\tpreads\tunit_bytes\tclosure_bytes\tmanifest_bytes\tindex_bytes\tseed_bytes\tdir_bytes\tanswer_bytes\tmatches_full\treason"
+    );
+    for r in rows {
+        println!(
+            "{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}\t{}",
+            r.request,
+            r.outcome,
+            r.units_read,
+            r.preads,
+            r.unit_bytes,
+            r.closure_bytes,
+            r.manifest_bytes,
+            r.index_bytes,
+            r.seed_bytes,
+            r.dir_bytes,
+            r.answer_bytes,
+            u8::from(r.matches_full),
+            r.fallback_reason
+        );
     }
     Ok(())
 }

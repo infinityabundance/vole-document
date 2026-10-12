@@ -15,6 +15,7 @@
 pub mod build;
 pub mod cache;
 pub mod capabilities;
+pub mod coarse;
 pub mod dag;
 pub mod derive;
 pub mod document_format;

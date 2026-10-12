@@ -3635,6 +3635,40 @@ pub fn observe_with_field(
     observe_view(store, FieldView::from_field(field), req, limits, started)
 }
 
+/// Observe against an explicit [`SourceServer`] (Phase 29.2 coarse lane).
+///
+/// The caller supplies the whole-source reader — a [`crate::field::coarse::CoarseSource`]
+/// that serves ranges from whole coarse units of the verbatim authority object.
+/// The descriptor is never parsed here, so the closure is exactly what the
+/// source server fetches plus the manifest/index/seed reads the evaluation needs.
+/// `object_count`/`graph_ops` are the descriptor's geometry as recorded by the
+/// coarse index; they are informational for the view and never gate an answer.
+pub fn observe_with_source(
+    store: &mut FieldStore,
+    manifest: &FieldRoot,
+    id: FieldId,
+    source: &dyn SourceServer,
+    geometry: (u32, u32),
+    req: &ObserveRequest,
+    limits: Limits,
+) -> Result<(FieldAnswer, ObserveStats, FieldId)> {
+    let started = Instant::now();
+    if let Some(r) = external_lineage_answer(store, &id, req, started) {
+        return r;
+    }
+    let view = FieldView {
+        manifest,
+        id,
+        open_io: IoSnapshot::default(),
+        source,
+        loader: None,
+        object_count: geometry.0 as usize,
+        graph_ops: geometry.1 as usize,
+        read_mode: DescriptorReadMode::Partial,
+    };
+    observe_view(store, view, req, limits, started)
+}
+
 /// Open the index store a resident session keeps across observations, sharing
 /// the field store's I/O counters so every index read it serves is charged to
 /// the session's observations rather than a private, discarded counter set.
