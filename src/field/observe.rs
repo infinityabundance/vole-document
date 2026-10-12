@@ -287,9 +287,10 @@ use crate::adapter::pkgmeta::{
 };
 #[cfg(feature = "ppt")]
 use crate::adapter::ppt::{
-    PptModel, PptRun, PptSlide, canonical_text as ppt_canonical_text, field_name as ppt_field_name,
-    find as ppt_find_matches, record_type_name as ppt_record_type_name,
-    run_kind_name as ppt_run_kind_name, slide_list_name as ppt_slide_list_name,
+    PptList, PptModel, PptRun, PptSlide, canonical_text as ppt_canonical_text,
+    field_name as ppt_field_name, find as ppt_find_matches,
+    record_type_name as ppt_record_type_name, run_kind_name as ppt_run_kind_name,
+    slide_list_name as ppt_slide_list_name,
 };
 #[cfg(feature = "pptx")]
 use crate::adapter::pptx::{
@@ -2224,6 +2225,19 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// One `SlideListWithText` list (Phase 27.2) of a legacy PowerPoint 97–2003
+    /// (`.ppt`) presentation, selected by `recInstance`: `slides` (0), `masters` (1),
+    /// `notes` (2), or `handout` (3). The list is materialized as its own typed answer:
+    /// the ordered `SlidePersistAtom` entries (`persistIdRef`, `cTexts`) and, for each,
+    /// the ordered text runs (`TextCharsAtom` UTF-16LE / `TextBytesAtom` CP1252) with
+    /// their exact atom/header spans and decoded text, in order. An absent or empty list
+    /// is a typed **empty** answer, never an error.
+    #[cfg(feature = "ppt")]
+    PptList {
+        /// The `SlideListWithText` instance (0 = slides, 1 = masters, 2 = notes,
+        /// 3 = handout).
+        instance: u16,
+    },
     /// The legacy Outlook message (`.msg`, MS-OXMSG) summary (Phase 26.4): the message
     /// header, the property/substream/recipient/attachment counts, the aggregate
     /// decoded text units, and the exact `__properties_version1.0` stream span. `Text`
@@ -2932,6 +2946,10 @@ impl Selector {
             Selector::PptRecord { index } => format!("ppt-record:{index}"),
             #[cfg(feature = "ppt")]
             Selector::PptFind { pattern } => format!("ppt-find:{pattern}"),
+            #[cfg(feature = "ppt")]
+            Selector::PptList { instance } => {
+                format!("ppt-list:{}", ppt_slide_list_name(*instance))
+            }
             #[cfg(feature = "msg")]
             Selector::MsgSummary => "msg-summary".to_string(),
             #[cfg(feature = "msg")]
@@ -5383,6 +5401,10 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "ppt")]
             (Selector::PptFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.ppt_find(req, pattern)
+            }
+            #[cfg(feature = "ppt")]
+            (Selector::PptList { instance }, R::Text | R::Metadata | R::Structure) => {
+                self.ppt_list(req, *instance)
             }
             #[cfg(feature = "msg")]
             (Selector::MsgSummary, R::Text | R::Metadata | R::Structure) => self.msg_summary(req),
@@ -15882,12 +15904,14 @@ impl<S: SeedStore> Ctx<'_, S> {
         format!(
             concat!(
                 "{{\"format\":\"ppt\",\"version\":\"{}\",\"stream\":\"{}\",",
-                "\"records\":{},\"slides\":{},\"runs\":{},\"chars\":{},\"bytes\":{},",
-                "\"text_units\":{},\"current_user\":{},\"stream_span\":[{},{}]}}"
+                "\"records\":{},\"lists\":{},\"slides\":{},\"runs\":{},\"chars\":{},",
+                "\"bytes\":{},\"text_units\":{},\"current_user\":{},",
+                "\"stream_span\":[{},{}]}}"
             ),
             "powerpoint97-2003",
             crate::adapter::ppt::STREAM_POWERPOINT_DOCUMENT,
             model.records.len(),
+            model.lists.len(),
             model.slides.len(),
             model.runs.len(),
             model.char_runs(),
@@ -16083,6 +16107,127 @@ impl<S: SeedStore> Ctx<'_, S> {
             out.join(",")
         ));
         Ok(self.ppt_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    /// One `SlideListWithText` list (Phase 27.2): its ordered slides and, per slide, the
+    /// ordered text runs with their exact spans and decoded text. An absent or empty
+    /// list is a typed **empty** answer, never an error.
+    fn ppt_list(&mut self, req: &ObserveRequest, instance: u16) -> Result<FieldAnswer> {
+        let (model, model_id) = self.ppt_model()?;
+        let (_, root) = self.ppt_source()?;
+        let name = ppt_slide_list_name(instance);
+        let span = model.list(instance).map(|l| l.span);
+        let list = model.list(instance);
+        let slides_n = list.map(|l| l.slides.len()).unwrap_or(0);
+        let runs_n = list.map(|l| l.runs.len()).unwrap_or(0);
+        let text_units: u64 = list
+            .map(|l| l.runs.iter().map(|r| r.text.len() as u64).sum())
+            .unwrap_or(0);
+        let empty = slides_n == 0;
+        let text = list.map(PptList::text).unwrap_or_default();
+        let provenance = format!(
+            "ppt;list={name};rec_instance={instance};slides={slides_n};runs={runs_n};empty={empty}"
+        );
+        let value = match req.representation {
+            Representation::Text => {
+                if text.len() as u64 > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "ppt list text exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+                AnswerValue::Text(text)
+            }
+            _ => {
+                let json = Self::ppt_list_json(name, instance, &model, &text, text_units, empty);
+                if json.len() as u64 > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "ppt list descriptor exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+                AnswerValue::Json(json)
+            }
+        };
+        Ok(self.ppt_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A `SlideListWithText` list descriptor: the list name and `recInstance`, the exact
+    /// container span, the ordered slides (each with its `persistIdRef`, `cTexts`, exact
+    /// `SlidePersistAtom` span, and its ordered runs with exact atom/header spans and
+    /// decoded text), and the concatenated text.
+    fn ppt_list_json(
+        name: &str,
+        instance: u16,
+        model: &PptModel,
+        text: &str,
+        text_units: u64,
+        empty: bool,
+    ) -> String {
+        let list = model.list(instance);
+        let (span0, span1) = list.map(|l| l.span).unwrap_or((0, 0));
+        let slides_n = list.map(|l| l.slides.len()).unwrap_or(0);
+        let runs_n = list.map(|l| l.runs.len()).unwrap_or(0);
+        let mut slides: Vec<String> = Vec::new();
+        if let Some(list) = list {
+            for (i, slide) in list.slides.iter().enumerate() {
+                let mut slide_text = String::new();
+                let mut runs: Vec<String> = Vec::new();
+                for (k, run) in list.slide_runs(slide).iter().enumerate() {
+                    if k > 0 {
+                        slide_text.push('\n');
+                    }
+                    slide_text.push_str(&String::from_utf16_lossy(&run.text));
+                    runs.push(format!(
+                        concat!(
+                            "{{\"kind\":\"{}\",\"type\":\"{}\",\"rec_type\":{},",
+                            "\"span\":[{},{}],\"header_span\":[{},{}],\"text\":\"{}\"}}"
+                        ),
+                        ppt_run_kind_name(run.kind),
+                        ppt_record_type_name(run.rec_type),
+                        run.rec_type,
+                        run.span.0,
+                        run.span.1,
+                        run.header_span.0,
+                        run.header_span.1,
+                        json_escape(&String::from_utf16_lossy(&run.text)),
+                    ));
+                }
+                slides.push(format!(
+                    concat!(
+                        "{{\"index\":{},\"persist_id_ref\":{},\"c_texts\":{},",
+                        "\"sp_span\":[{},{}],\"runs\":[{},{}],\"text\":\"{}\",",
+                        "\"slide_runs\":[{}]}}"
+                    ),
+                    i,
+                    slide.persist_id_ref,
+                    slide.c_texts,
+                    slide.sp_span.0,
+                    slide.sp_span.1,
+                    slide.run_start,
+                    slide.run_end,
+                    json_escape(&slide_text),
+                    runs.join(","),
+                ));
+            }
+        }
+        format!(
+            concat!(
+                "{{\"format\":\"ppt\",\"list\":\"{}\",\"rec_instance\":{},",
+                "\"empty\":{},\"span\":[{},{}],\"slides\":{},\"runs\":{},",
+                "\"text_units\":{},\"text\":\"{}\",\"list_slides\":[{}]}}"
+            ),
+            name,
+            instance,
+            empty,
+            span0,
+            span1,
+            slides_n,
+            runs_n,
+            text_units,
+            json_escape(text),
+            slides.join(","),
+        )
     }
 
     // -- common -----------------------------------------------------------------

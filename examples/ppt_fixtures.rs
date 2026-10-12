@@ -248,6 +248,12 @@ const REC_SLIDE_LIST_WITH_TEXT: u16 = 4080;
 const CHARS_TEXT: &str = "Hello Ω";
 /// CP1252 bytes for "Café €" (`é` = 0xE9, `€` = 0x80).
 const BYTES_TEXT: &[u8] = b"Caf\xE9 \x80";
+/// Phase 27.2 aux-list fixture texts (masters / notes / handout).
+const MASTER_TEXT: &str = "Master Title";
+const NOTES_CHARS: &str = "Speaker notes";
+/// CP1252 bytes for "Pöints" (`ö` = 0xF6).
+const NOTES_BYTES: &[u8] = b"P\xF6ints";
+const HANDOUT_TEXT: &str = "Handout footer";
 
 fn rec(out: &mut Vec<u8>, rec_ver: u8, rec_instance: u16, rec_type: u16, payload: &[u8]) {
     let w: u16 = (rec_ver as u16) | (rec_instance << 4);
@@ -293,6 +299,9 @@ struct Opts {
     bad_current_user: bool,
     /// Omit the `Current User` stream entirely.
     no_current_user: bool,
+    /// A **notes** `SlideListWithText` whose `TextCharsAtom` payload length is odd. The
+    /// notes list was previously skipped; Phase 27.2 models it, so this declines typed.
+    bad_aux_list: bool,
 }
 
 /// Build the `PowerPoint Document` stream.
@@ -334,6 +343,29 @@ fn powerpoint_document(o: &Opts) -> Vec<u8> {
         REC_SLIDE_LIST_WITH_TEXT,
         &slwt,
     );
+    if o.bad_aux_list {
+        // A notes list (recInstance 2) whose TextCharsAtom payload length is odd. The
+        // notes list was previously skipped; it is now modeled, so this declines typed.
+        let mut notes: Vec<u8> = Vec::new();
+        rec(
+            &mut notes,
+            0,
+            0,
+            REC_SLIDE_PERSIST_ATOM,
+            &slide_persist_atom(9, 1),
+        );
+        rec(&mut notes, 0, 0, REC_TEXT_HEADER_ATOM, &[0u8; 4]);
+        let mut odd = utf16_units("odd");
+        odd.push(0);
+        rec(&mut notes, 0, 0, REC_TEXT_CHARS_ATOM, &odd);
+        rec(
+            &mut doc_payload,
+            REC_VER_CONTAINER,
+            2,
+            REC_SLIDE_LIST_WITH_TEXT,
+            &notes,
+        );
+    }
     // EndDocument.
     rec(&mut doc_payload, 0, 0, REC_END_DOCUMENT, &[]);
 
@@ -360,6 +392,135 @@ fn powerpoint_document(o: &Opts) -> Vec<u8> {
         stream.extend_from_slice(&[0u8, 0u8, 0u8]);
     }
     stream
+}
+
+/// Build a `PowerPoint Document` stream with all four `SlideListWithText` lists, each
+/// with text runs (the masters/notes/handout lists were previously skipped).
+fn powerpoint_document_lists() -> Vec<u8> {
+    let mut doc: Vec<u8> = Vec::new();
+    // slides list (recInstance 0): persist 1 (UTF-16LE) + persist 2 (CP1252).
+    let mut slwt: Vec<u8> = Vec::new();
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_SLIDE_PERSIST_ATOM,
+        &slide_persist_atom(1, 1),
+    );
+    rec(&mut slwt, 0, 0, REC_TEXT_HEADER_ATOM, &[0u8; 4]);
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_TEXT_CHARS_ATOM,
+        &utf16_units(CHARS_TEXT),
+    );
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_SLIDE_PERSIST_ATOM,
+        &slide_persist_atom(2, 1),
+    );
+    rec(&mut slwt, 0, 0, REC_TEXT_HEADER_ATOM, &[0u8; 4]);
+    rec(&mut slwt, 0, 0, REC_TEXT_BYTES_ATOM, BYTES_TEXT);
+    rec(
+        &mut doc,
+        REC_VER_CONTAINER,
+        0,
+        REC_SLIDE_LIST_WITH_TEXT,
+        &slwt,
+    );
+    // masters list (recInstance 1).
+    let mut slwt: Vec<u8> = Vec::new();
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_SLIDE_PERSIST_ATOM,
+        &slide_persist_atom(3, 1),
+    );
+    rec(&mut slwt, 0, 0, REC_TEXT_HEADER_ATOM, &[0u8; 4]);
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_TEXT_CHARS_ATOM,
+        &utf16_units(MASTER_TEXT),
+    );
+    rec(
+        &mut doc,
+        REC_VER_CONTAINER,
+        1,
+        REC_SLIDE_LIST_WITH_TEXT,
+        &slwt,
+    );
+    // notes list (recInstance 2): two runs (UTF-16LE then CP1252).
+    let mut slwt: Vec<u8> = Vec::new();
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_SLIDE_PERSIST_ATOM,
+        &slide_persist_atom(4, 2),
+    );
+    rec(&mut slwt, 0, 0, REC_TEXT_HEADER_ATOM, &[0u8; 4]);
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_TEXT_CHARS_ATOM,
+        &utf16_units(NOTES_CHARS),
+    );
+    rec(&mut slwt, 0, 0, REC_TEXT_HEADER_ATOM, &[0u8; 4]);
+    rec(&mut slwt, 0, 0, REC_TEXT_BYTES_ATOM, NOTES_BYTES);
+    rec(
+        &mut doc,
+        REC_VER_CONTAINER,
+        2,
+        REC_SLIDE_LIST_WITH_TEXT,
+        &slwt,
+    );
+    // handout list (recInstance 3).
+    let mut slwt: Vec<u8> = Vec::new();
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_SLIDE_PERSIST_ATOM,
+        &slide_persist_atom(5, 1),
+    );
+    rec(&mut slwt, 0, 0, REC_TEXT_HEADER_ATOM, &[0u8; 4]);
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_TEXT_CHARS_ATOM,
+        &utf16_units(HANDOUT_TEXT),
+    );
+    rec(
+        &mut doc,
+        REC_VER_CONTAINER,
+        3,
+        REC_SLIDE_LIST_WITH_TEXT,
+        &slwt,
+    );
+    rec(&mut doc, 0, 0, REC_END_DOCUMENT, &[]);
+
+    let mut stream: Vec<u8> = Vec::new();
+    stream.extend_from_slice(&(REC_VER_CONTAINER as u16).to_le_bytes());
+    stream.extend_from_slice(&REC_DOCUMENT.to_le_bytes());
+    stream.extend_from_slice(&(doc.len() as u32).to_le_bytes());
+    stream.extend_from_slice(&doc);
+    stream
+}
+
+/// The four-list fixture as a complete compound file (with a `Current User` stream).
+fn build_lists() -> Vec<u8> {
+    build_cfbf(&[
+        ("PowerPoint Document", powerpoint_document_lists()),
+        ("Current User", current_user(false)),
+    ])
 }
 
 /// Build the `Current User` stream: a 4-byte offset, 4 bytes of padding, then a
@@ -410,6 +571,9 @@ fn main() {
     let valid = build_ppt(&Opts::default());
     write(dir, "ppt_valid.ppt", &valid);
 
+    // All four SlideListWithText lists (Phase 27.2): slides + masters + notes + handout.
+    write(dir, "ppt_lists.ppt", &build_lists());
+
     // A first record that is not a `Document` container: detection declines → `cfbf`.
     write(
         dir,
@@ -456,6 +620,17 @@ fn main() {
         "ppt_truncated.ppt",
         &build_ppt(&Opts {
             trailing_truncated: true,
+            ..Opts::default()
+        }),
+    );
+
+    // A notes SlideListWithText whose TextCharsAtom payload length is odd (Phase 27.2:
+    // the aux lists are now modeled, so this declines typed instead of being skipped).
+    write(
+        dir,
+        "ppt_bad_aux_list.ppt",
+        &build_ppt(&Opts {
+            bad_aux_list: true,
             ..Opts::default()
         }),
     );

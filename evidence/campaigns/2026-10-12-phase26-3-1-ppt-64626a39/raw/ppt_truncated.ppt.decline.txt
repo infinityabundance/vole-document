@@ -1,0 +1,1 @@
+error: InvalidPptStructure: ppt: a record header is truncated

@@ -375,6 +375,7 @@ const PPT_NATIVE: &[&str] = &[
     "ppt-slide",
     "ppt-run",
     "ppt-record",
+    "ppt-list",
     "ppt-find",
 ];
 

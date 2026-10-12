@@ -1,0 +1,19 @@
+{
+  "campaign": "evidence/campaigns/2026-10-12-phase26-1-1-doc-64626a39",
+  "phase": "26.1.1 — legacy Word 97–2003 (.doc, MS-DOC) semantic surface + exact closure on the CFBF/OLE2 physical layer",
+  "utc": "2026-10-12T09:22:05Z",
+  "git_commit": "64626a3948d3d39dcf31083bf0049dbdc110e751",
+  "git_dirty": " M examples/ppt_fixtures.rs  M src/adapter/ppt.rs  M src/field/capabilities.rs  M src/field/observe.rs  M src/main.rs  M tests/ppt_adapter.rs ?? evidence/campaigns/2026-10-12-phase21-35-1-cfbf-64626a39/ ?? evidence/campaigns/2026-10-12-phase26-1-1-doc-64626a39/ ?? evidence/campaigns/2026-10-12-phase26-3-1-ppt-64626a39/ ?? evidence/campaigns/2026-10-12-phase27-2-1-ppt-lists-64626a39/ ?? tools/phase27-2-1-ppt-lists-court.sh ",
+  "arch": "x86_64",
+  "service": "dev",
+  "base_image": "rust:1.99.0-slim-bookworm@sha256:452176c0cefca88c0b3184ce85a4eb03e3d4fa05d2afb5366abcba853221019e",
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "10514d8d8b124d76a66c7fe517381d9c4fc76fe635981bc5b9961939f568198a",
+  "bin": "target/debug/vole-document",
+  "bin_sha256": "a66345c34c7314bc9c9ec72ecb8da368f748a836a6a24a83d7781d161e35209a",
+  "profile": "debug",
+  "fixtures_tool": "examples/doc_fixtures.rs (dependency-free .doc/CFBF writer; no python3, no Word/LibreOffice/wvWare, no external OLE tooling)",
+  "external_oracles": "none (the DOC model is validated internally; no external Word parser is invoked)",
+  "env_affecting_semantics": {"LC_ALL": "C"}
+}

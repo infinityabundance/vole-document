@@ -1,0 +1,1 @@
+error: InvalidPptStructure: ppt: a TextCharsAtom payload length is not a multiple of two

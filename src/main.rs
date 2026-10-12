@@ -164,7 +164,7 @@ const USAGE_FIELD: &str = "\
         --xls-biff | --xls-sheet N | --xls-cell N | --xls-record N | --xls-find PATTERN |
         --xls-text |
         --ppt-document | --ppt-slide N | --ppt-run N | --ppt-record N |
-        --ppt-find PATTERN | --ppt-text |
+        --ppt-list NAME | --ppt-find PATTERN | --ppt-text |
         --msg-summary | --msg-property N | --msg-recipient N | --msg-attachment N |
         --msg-find PATTERN | --msg-text |
         --doc-fib | --doc-piece N | --doc-body |
@@ -2230,6 +2230,12 @@ struct FieldArgs {
     /// (Phase 26.3).
     #[cfg(feature = "ppt")]
     ppt_find: Option<String>,
+    /// `--ppt-list NAME`: one `SlideListWithText` list — `slides`, `masters`, `notes`,
+    /// or `handout` — with its ordered `SlidePersistAtom` slides and their text runs
+    /// (exact spans + decoded text). An absent or empty list is a typed empty answer
+    /// (Phase 27.2).
+    #[cfg(feature = "ppt")]
+    ppt_list: Option<String>,
     /// `--msg-summary`: the legacy Outlook message (`.msg`, MS-OXMSG) header and
     /// inventory — the message header, the property/substream/recipient/attachment
     /// counts, and the exact `__properties_version1.0` stream span (Phase 26.4).
@@ -3463,6 +3469,10 @@ fn parse_field_args(args: &[String]) -> Result<FieldArgs> {
             #[cfg(feature = "ppt")]
             "--ppt-find" => {
                 out.ppt_find = Some(field_arg_value(args, &mut i, "--ppt-find", inline)?);
+            }
+            #[cfg(feature = "ppt")]
+            "--ppt-list" => {
+                out.ppt_list = Some(field_arg_value(args, &mut i, "--ppt-list", inline)?);
             }
             #[cfg(feature = "msg")]
             "--msg-summary" => {
@@ -4721,6 +4731,16 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
             chosen.push(Selector::PptFind {
                 pattern: pattern.clone(),
             });
+        }
+        if let Some(name) = &out.ppt_list {
+            let instance =
+                vole_document::adapter::ppt::slide_list_from_name(name).ok_or_else(|| {
+                    Error::usage(format!(
+                        "unknown --ppt-list {name:?}; expected one of slides, masters, notes, \
+                         handout"
+                    ))
+                })?;
+            chosen.push(Selector::PptList { instance });
         }
     }
     // Legacy Outlook message (`.msg`, MS-OXMSG): `--msg-summary` the message header and

@@ -44,8 +44,10 @@
 //! * the **`Document`** record (`recType 1000`, `recVer 0xF`) at the stream start;
 //! * the **`SlideListWithText`** containers (`recType 4080`, `recVer 0xF`) and their
 //!   **`SlidePersistAtom`** entries (`recType 1011`): each atom's `persistIdRef` (its
-//!   slide identity) and `cTexts`, giving the **slide order** for the slide list
-//!   (`recInstance 0`);
+//!   slide identity) and `cTexts`, giving the **slide order**. All four lists are
+//!   modeled, distinguished by `recInstance`: `slides` (0), `masters` (1), `notes` (2),
+//!   and `handout` (3); the slides list additionally defines the legacy slide/run
+//!   projection ([`PptModel::slides`]/[`PptModel::runs`]);
 //! * the **text runs**: for each `TextPersist` group, a **`TextHeaderAtom`**
 //!   (`recType 3999`), then a **`TextCharsAtom`** (`recType 4000`, UTF-16LE) or a
 //!   **`TextBytesAtom`** (`recType 4008`, CP1252). Each run records its kind, its
@@ -79,14 +81,18 @@
 use crate::error::{Error, Result};
 use crate::limits::Limits;
 
-/// Wire version of the canonical derived model.
-pub const MODEL_VERSION: u8 = 1;
+/// Wire version of the canonical derived model. Version 2 added the modeled
+/// `SlideListWithText` list arena (all four instances); the legacy slides/runs
+/// projection is derived from it.
+pub const MODEL_VERSION: u8 = 2;
 /// Hard cap on decoded model records (defends the decoder against a hostile blob).
 pub const MAX_MODEL_RECORDS: u32 = 1 << 24;
 /// Hard cap on decoded model slides.
 pub const MAX_MODEL_SLIDES: u32 = 1 << 20;
 /// Hard cap on decoded model text runs.
 pub const MAX_MODEL_RUNS: u32 = 1 << 24;
+/// Hard cap on decoded model `SlideListWithText` lists.
+pub const MAX_MODEL_LISTS: u32 = 1 << 12;
 /// Hard cap on decoded text code units.
 pub const MAX_MODEL_TEXT_UNITS: u32 = 1 << 30;
 
@@ -114,6 +120,15 @@ pub const SLIDE_LIST_SLIDES: u16 = 0;
 pub const SLIDE_LIST_MASTER: u16 = 1;
 /// The `SlideListWithText` instance selecting the **notes** list.
 pub const SLIDE_LIST_NOTES: u16 = 2;
+/// The `SlideListWithText` instance selecting the **handout** list.
+pub const SLIDE_LIST_HANDOUT: u16 = 3;
+/// The four `SlideListWithText` instances this adapter models, in wire order.
+pub const SLIDE_LIST_KINDS: [u16; 4] = [
+    SLIDE_LIST_SLIDES,
+    SLIDE_LIST_MASTER,
+    SLIDE_LIST_NOTES,
+    SLIDE_LIST_HANDOUT,
+];
 
 /// Run kind: a `TextCharsAtom` (UTF-16LE).
 pub const RUN_CHARS: u8 = 0;
@@ -150,14 +165,24 @@ pub const fn record_type_name(rec_type: u16) -> &'static str {
     }
 }
 
-/// A stable name for a `SlideListWithText` instance.
+/// A stable name for a `SlideListWithText` instance (`slides`, `masters`, `notes`,
+/// `handout`; `other` for an unrecognized instance).
 pub const fn slide_list_name(instance: u16) -> &'static str {
     match instance {
         SLIDE_LIST_SLIDES => "slides",
-        SLIDE_LIST_MASTER => "master",
+        SLIDE_LIST_MASTER => "masters",
         SLIDE_LIST_NOTES => "notes",
+        SLIDE_LIST_HANDOUT => "handout",
         _ => "other",
     }
+}
+
+/// Resolve a `SlideListWithText` instance by its stable name (`slides`, `masters`,
+/// `notes`, `handout`).
+pub fn slide_list_from_name(name: &str) -> Option<u16> {
+    SLIDE_LIST_KINDS
+        .into_iter()
+        .find(|&i| slide_list_name(i) == name)
 }
 
 /// The stable match-field name.
@@ -230,6 +255,88 @@ pub struct PptRun {
     pub text: Vec<u16>,
 }
 
+/// One text run inside a `SlideListWithText` list: its kind, its exact atom/header
+/// spans, and its decoded text. [`PptListRun::slide`] is the run's slide index within
+/// the enclosing [`PptList`] (not the global slide arena).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PptListRun {
+    /// The owning slide's index within the enclosing [`PptList`].
+    pub slide: u32,
+    /// [`RUN_CHARS`] or [`RUN_BYTES`].
+    pub kind: u8,
+    /// The text atom's record type.
+    pub rec_type: u16,
+    /// `(offset, length)` of the preceding `TextHeaderAtom` (or `(0, 0)`).
+    pub header_span: (u64, u64),
+    /// `(offset, length)` of the text atom record (header + payload).
+    pub span: (u64, u64),
+    /// The decoded text (Unicode code units; exact).
+    pub text: Vec<u16>,
+}
+
+/// One slide entry (`SlidePersistAtom`) of a [`PptList`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PptListSlide {
+    /// `persistIdRef`: the slide's persistent identity.
+    pub persist_id_ref: u32,
+    /// `cTexts`: the declared number of text records (informational).
+    pub c_texts: u32,
+    /// `(offset, length)` of the `SlidePersistAtom` record.
+    pub sp_span: (u64, u64),
+    /// The slide's run range `[run_start, run_end)` within the enclosing [`PptList`].
+    pub run_start: u32,
+    pub run_end: u32,
+}
+
+/// One modeled `SlideListWithText` list (`recType 4080`): its `recInstance`, the exact
+/// span of the container record, and its ordered `SlidePersistAtom` slides with their
+/// ordered text runs. All four lists (`slides`, `masters`, `notes`, `handout`) are
+/// materialized; the slides list additionally defines [`PptModel::slides`] /
+/// [`PptModel::runs`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PptList {
+    /// The `SlideListWithText` instance ([`SLIDE_LIST_SLIDES`] etc.).
+    pub instance: u16,
+    /// `(offset, length)` of the `SlideListWithText` container record.
+    pub span: (u64, u64),
+    /// The slides, in `SlidePersistAtom` order.
+    pub slides: Vec<PptListSlide>,
+    /// The text-run arena (slide order, then record order), local to this list.
+    pub runs: Vec<PptListRun>,
+}
+
+impl PptList {
+    /// The slide at `index`, if present.
+    pub fn slide(&self, index: u32) -> Option<&PptListSlide> {
+        self.slides.get(index as usize)
+    }
+
+    /// The run arena slice of a slide.
+    pub fn slide_runs(&self, slide: &PptListSlide) -> &[PptListRun] {
+        let s = slide.run_start as usize;
+        let e = slide.run_end as usize;
+        self.runs.get(s..e).unwrap_or(&[])
+    }
+
+    /// The concatenated decoded text of the list: each slide's runs (newline-joined)
+    /// with slides newline-separated.
+    pub fn text(&self) -> String {
+        let mut out = String::new();
+        for (i, slide) in self.slides.iter().enumerate() {
+            if i > 0 {
+                out.push('\n');
+            }
+            for (k, run) in self.slide_runs(slide).iter().enumerate() {
+                if k > 0 {
+                    out.push('\n');
+                }
+                out.push_str(&String::from_utf16_lossy(&run.text));
+            }
+        }
+        out
+    }
+}
+
 /// The recorded `Current User` stream (`UserEditAtom` offset).
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PptCurrentUser {
@@ -250,15 +357,24 @@ pub struct PptModel {
     pub stream_span: (u64, u64),
     /// Every record of the stream, in order.
     pub records: Vec<PptRecord>,
-    /// The slides, in `SlideListWithText`/`SlidePersistAtom` order.
+    /// Every modeled `SlideListWithText` list, in record order (all four instances).
+    pub lists: Vec<PptList>,
+    /// The slides of the **slides** list, in `SlidePersistAtom` order (derived from
+    /// [`Self::lists`]).
     pub slides: Vec<PptSlide>,
-    /// The text-run arena (slide order, then record order).
+    /// The slides-list text-run arena (slide order, then record order; derived from
+    /// [`Self::lists`]).
     pub runs: Vec<PptRun>,
     /// The `Current User` stream's `UserEditAtom` offset, if present.
     pub current_user: Option<PptCurrentUser>,
 }
 
 impl PptModel {
+    /// The `SlideListWithText` list for `instance`, if the source carries one.
+    pub fn list(&self, instance: u16) -> Option<&PptList> {
+        self.lists.iter().find(|l| l.instance == instance)
+    }
+
     /// The slide at `index`, if present.
     pub fn slide(&self, index: u32) -> Option<&PptSlide> {
         self.slides.get(index as usize)
@@ -310,25 +426,28 @@ impl PptModel {
             out.extend_from_slice(&r.len.to_le_bytes());
             out.extend_from_slice(&r.depth.to_le_bytes());
         }
-        // slides
-        out.extend_from_slice(&(self.slides.len() as u32).to_le_bytes());
-        for s in &self.slides {
-            out.extend_from_slice(&s.persist_id_ref.to_le_bytes());
-            out.extend_from_slice(&s.c_texts.to_le_bytes());
-            out.extend_from_slice(&s.list_instance.to_le_bytes());
-            w_span(&mut out, s.sp_span);
-            out.extend_from_slice(&s.run_start.to_le_bytes());
-            out.extend_from_slice(&s.run_end.to_le_bytes());
-        }
-        // runs
-        out.extend_from_slice(&(self.runs.len() as u32).to_le_bytes());
-        for r in &self.runs {
-            out.extend_from_slice(&r.slide.to_le_bytes());
-            out.push(r.kind);
-            out.extend_from_slice(&r.rec_type.to_le_bytes());
-            w_span(&mut out, r.header_span);
-            w_span(&mut out, r.span);
-            w_units(&mut out, &r.text);
+        // SlideListWithText lists (all four instances; slides/runs are derived on decode).
+        out.extend_from_slice(&(self.lists.len() as u32).to_le_bytes());
+        for l in &self.lists {
+            out.extend_from_slice(&l.instance.to_le_bytes());
+            w_span(&mut out, l.span);
+            out.extend_from_slice(&(l.slides.len() as u32).to_le_bytes());
+            for s in &l.slides {
+                out.extend_from_slice(&s.persist_id_ref.to_le_bytes());
+                out.extend_from_slice(&s.c_texts.to_le_bytes());
+                w_span(&mut out, s.sp_span);
+                out.extend_from_slice(&s.run_start.to_le_bytes());
+                out.extend_from_slice(&s.run_end.to_le_bytes());
+            }
+            out.extend_from_slice(&(l.runs.len() as u32).to_le_bytes());
+            for r in &l.runs {
+                out.extend_from_slice(&r.slide.to_le_bytes());
+                out.push(r.kind);
+                out.extend_from_slice(&r.rec_type.to_le_bytes());
+                w_span(&mut out, r.header_span);
+                w_span(&mut out, r.span);
+                w_units(&mut out, &r.text);
+            }
         }
         // current user
         match &self.current_user {
@@ -388,66 +507,85 @@ impl PptModel {
                 depth,
             });
         }
-        let n_slides = r.u32()?;
-        if n_slides > MAX_MODEL_SLIDES {
-            return Err(corrupt("model slide count is implausible"));
+        let n_lists = r.u32()?;
+        if n_lists > MAX_MODEL_LISTS {
+            return Err(corrupt("model list count is implausible"));
         }
-        let mut slides = Vec::new();
-        for _ in 0..n_slides {
-            let persist_id_ref = r.u32()?;
-            let c_texts = r.u32()?;
-            let list_instance = r.u16()?;
-            let sp_span = r.span()?;
-            check_span(sp_span, doc_len, "SlidePersistAtom span")?;
-            let run_start = r.u32()?;
-            let run_end = r.u32()?;
-            slides.push(PptSlide {
-                persist_id_ref,
-                c_texts,
-                list_instance,
-                sp_span,
-                run_start,
-                run_end,
-            });
-        }
-        let n_runs = r.u32()?;
-        if n_runs > MAX_MODEL_RUNS {
-            return Err(corrupt("model run count is implausible"));
-        }
-        let mut runs = Vec::new();
+        let mut lists = Vec::new();
+        let mut slides_total: u64 = 0;
+        let mut runs_total: u64 = 0;
         let mut units_total: u64 = 0;
-        for _ in 0..n_runs {
-            let slide = r.u32()?;
-            let kind = r.u8()?;
-            let rec_type = r.u16()?;
-            let header_span = r.span()?;
-            check_span(header_span, doc_len, "run header span")?;
+        for _ in 0..n_lists {
+            let instance = r.u16()?;
             let span = r.span()?;
-            check_span(span, doc_len, "run span")?;
-            let text = r.units()?;
-            units_total = units_total.saturating_add(text.len() as u64);
-            if units_total > MAX_MODEL_TEXT_UNITS as u64 {
-                return Err(corrupt("model text is implausible"));
+            check_span(span, doc_len, "SlideListWithText span")?;
+            let n_slides = r.u32()?;
+            slides_total = slides_total.saturating_add(n_slides as u64);
+            if slides_total > MAX_MODEL_SLIDES as u64 {
+                return Err(corrupt("model slide count is implausible"));
             }
-            runs.push(PptRun {
-                slide,
-                kind,
-                rec_type,
-                header_span,
+            let mut slides = Vec::new();
+            for _ in 0..n_slides {
+                let persist_id_ref = r.u32()?;
+                let c_texts = r.u32()?;
+                let sp_span = r.span()?;
+                check_span(sp_span, doc_len, "SlidePersistAtom span")?;
+                let run_start = r.u32()?;
+                let run_end = r.u32()?;
+                slides.push(PptListSlide {
+                    persist_id_ref,
+                    c_texts,
+                    sp_span,
+                    run_start,
+                    run_end,
+                });
+            }
+            let n_runs = r.u32()?;
+            runs_total = runs_total.saturating_add(n_runs as u64);
+            if runs_total > MAX_MODEL_RUNS as u64 {
+                return Err(corrupt("model run count is implausible"));
+            }
+            let mut runs = Vec::new();
+            for _ in 0..n_runs {
+                let slide = r.u32()?;
+                let kind = r.u8()?;
+                let rec_type = r.u16()?;
+                let header_span = r.span()?;
+                check_span(header_span, doc_len, "run header span")?;
+                let span = r.span()?;
+                check_span(span, doc_len, "run span")?;
+                let text = r.units()?;
+                units_total = units_total.saturating_add(text.len() as u64);
+                if units_total > MAX_MODEL_TEXT_UNITS as u64 {
+                    return Err(corrupt("model text is implausible"));
+                }
+                runs.push(PptListRun {
+                    slide,
+                    kind,
+                    rec_type,
+                    header_span,
+                    span,
+                    text,
+                });
+            }
+            for s in &slides {
+                if s.run_start > s.run_end || s.run_end as usize > runs.len() {
+                    return Err(corrupt("a slide run range is out of bounds"));
+                }
+            }
+            for run in &runs {
+                if run.slide as usize >= slides.len() {
+                    return Err(corrupt("a run names an out-of-range slide"));
+                }
+            }
+            lists.push(PptList {
+                instance,
                 span,
-                text,
+                slides,
+                runs,
             });
         }
-        for s in &slides {
-            if s.run_start > s.run_end || s.run_end as usize > runs.len() {
-                return Err(corrupt("a slide run range is out of bounds"));
-            }
-        }
-        for run in &runs {
-            if run.slide as usize >= slides.len() {
-                return Err(corrupt("a run names an out-of-range slide"));
-            }
-        }
+        let (slides, runs) = derive_slides_runs(&lists);
         let current_user = if r.u8()? != 0 {
             let span = r.span()?;
             check_span(span, doc_len, "Current User stream span")?;
@@ -469,6 +607,7 @@ impl PptModel {
             doc_len,
             stream_span,
             records,
+            lists,
             slides,
             runs,
             current_user,
@@ -620,9 +759,13 @@ pub fn parse(source: &[u8], limits: Limits) -> Result<PptModel> {
         ));
     }
 
-    let (slides, runs) = parse_slides(stream, &records, limits)?;
+    let lists = parse_lists(stream, &records, limits)?;
 
-    let text_units: u64 = runs.iter().map(|r| r.text.len() as u64).sum();
+    let text_units: u64 = lists
+        .iter()
+        .flat_map(|l| l.runs.iter())
+        .map(|r| r.text.len() as u64)
+        .sum();
     if text_units > limits.max_ppt_text_bytes {
         return Err(Error::resource_limit(format!(
             "ppt derived text is above the {}-byte text cap",
@@ -630,12 +773,14 @@ pub fn parse(source: &[u8], limits: Limits) -> Result<PptModel> {
         )));
     }
 
+    let (slides, runs) = derive_slides_runs(&lists);
     let current_user = parse_current_user(source, &cfbf)?;
 
     Ok(PptModel {
         doc_len: len,
         stream_span,
         records,
+        lists,
         slides,
         runs,
         current_user,
@@ -721,28 +866,47 @@ fn scan_records(stream: &[u8], base: u64, limits: Limits) -> Result<Vec<PptRecor
     Ok(out)
 }
 
-/// Parse the `SlideListWithText` containers into the ordered slides and their runs.
-fn parse_slides(
-    stream: &[u8],
-    records: &[PptRecord],
-    limits: Limits,
-) -> Result<(Vec<PptSlide>, Vec<PptRun>)> {
-    let mut slides: Vec<PptSlide> = Vec::new();
-    let mut runs: Vec<PptRun> = Vec::new();
+/// Decode a text atom's payload into `(kind, text)` (`TextCharsAtom` is UTF-16LE;
+/// `TextBytesAtom` is CP1252).
+fn decode_text_atom(pl: &[u8], rec_type: u16) -> Result<(u8, Vec<u16>)> {
+    if rec_type == REC_TEXT_CHARS_ATOM {
+        if !pl.len().is_multiple_of(2) {
+            return Err(invalid(
+                "a TextCharsAtom payload length is not a multiple of two",
+            ));
+        }
+        let text: Vec<u16> = pl
+            .as_chunks::<2>()
+            .0
+            .iter()
+            .map(|c| u16::from_le_bytes(*c))
+            .collect();
+        Ok((RUN_CHARS, text))
+    } else {
+        Ok((RUN_BYTES, pl.iter().map(|&b| cp1252(b)).collect()))
+    }
+}
+
+/// Parse the `SlideListWithText` containers (all four instances) into their lists, in
+/// record order. Every list is span-preserving: each `SlidePersistAtom` and each text
+/// atom keeps its exact source span and stream-relative order, and each run is bound to
+/// its `persistIdRef`. A text atom that precedes any `SlidePersistAtom` in a list, a
+/// truncated `SlidePersistAtom`, and an odd-length `TextCharsAtom` all decline typed; a
+/// `SlideListWithText` with no slides (and an absent one) is an empty list, not an error.
+fn parse_lists(stream: &[u8], records: &[PptRecord], limits: Limits) -> Result<Vec<PptList>> {
+    let mut lists: Vec<PptList> = Vec::new();
+    let mut slides_total: u64 = 0;
+    let mut runs_total: u64 = 0;
     for (i, r) in records.iter().enumerate() {
         if r.rec_type != REC_SLIDE_LIST_WITH_TEXT || r.rec_ver != REC_VER_CONTAINER {
-            continue;
-        }
-        // Only the slides list (`recInstance 0`) defines slide order and text runs;
-        // the master/notes lists are outside the documented subset and are skipped
-        // (never declined).
-        if r.rec_instance != SLIDE_LIST_SLIDES {
             continue;
         }
         let container_end = r.stream_off + 8 + r.len as u64;
         let child_depth = r.depth + 1;
         let mut cur: Option<usize> = None;
         let mut header_span: (u64, u64) = (0, 0);
+        let mut slides: Vec<PptListSlide> = Vec::new();
+        let mut runs: Vec<PptListRun> = Vec::new();
         for c in &records[i + 1..] {
             if c.stream_off >= container_end {
                 break;
@@ -758,17 +922,17 @@ fn parse_slides(
                     }
                     let persist_id_ref = u32::from_le_bytes([pl[0], pl[1], pl[2], pl[3]]);
                     let c_texts = u32::from_le_bytes([pl[4], pl[5], pl[6], pl[7]]);
-                    if slides.len() as u64 >= limits.max_ppt_slides {
+                    slides_total = slides_total.saturating_add(1);
+                    if slides_total > limits.max_ppt_slides {
                         return Err(Error::resource_limit(format!(
                             "the presentation has more than {} slides",
                             limits.max_ppt_slides
                         )));
                     }
                     cur = Some(slides.len());
-                    slides.push(PptSlide {
+                    slides.push(PptListSlide {
                         persist_id_ref,
                         c_texts,
-                        list_instance: r.rec_instance,
                         sp_span: c.span,
                         run_start: runs.len() as u32,
                         run_end: runs.len() as u32,
@@ -782,29 +946,15 @@ fn parse_slides(
                         ));
                     };
                     let pl = payload(stream, c);
-                    let (kind, text) = if c.rec_type == REC_TEXT_CHARS_ATOM {
-                        if !pl.len().is_multiple_of(2) {
-                            return Err(invalid(
-                                "a TextCharsAtom payload length is not a multiple of two",
-                            ));
-                        }
-                        let text: Vec<u16> = pl
-                            .as_chunks::<2>()
-                            .0
-                            .iter()
-                            .map(|c| u16::from_le_bytes(*c))
-                            .collect();
-                        (RUN_CHARS, text)
-                    } else {
-                        (RUN_BYTES, pl.iter().map(|&b| cp1252(b)).collect())
-                    };
-                    if runs.len() as u64 >= limits.max_ppt_runs {
+                    let (kind, text) = decode_text_atom(pl, c.rec_type)?;
+                    runs_total = runs_total.saturating_add(1);
+                    if runs_total > limits.max_ppt_runs {
                         return Err(Error::resource_limit(format!(
                             "the presentation has more than {} text runs",
                             limits.max_ppt_runs
                         )));
                     }
-                    runs.push(PptRun {
+                    runs.push(PptListRun {
                         slide: si as u32,
                         kind,
                         rec_type: c.rec_type,
@@ -818,8 +968,50 @@ fn parse_slides(
                 _ => {}
             }
         }
+        lists.push(PptList {
+            instance: r.rec_instance,
+            span: r.span,
+            slides,
+            runs,
+        });
     }
-    Ok((slides, runs))
+    Ok(lists)
+}
+
+/// Derive the legacy slides/runs projection (the **slides** list only) from the list
+/// arena. The resulting arenas are byte-for-byte the Phase-26.3 slides/runs (the slides
+/// list's slides in order, each with its runs in record order).
+fn derive_slides_runs(lists: &[PptList]) -> (Vec<PptSlide>, Vec<PptRun>) {
+    let mut slides: Vec<PptSlide> = Vec::new();
+    let mut runs: Vec<PptRun> = Vec::new();
+    for list in lists {
+        if list.instance != SLIDE_LIST_SLIDES {
+            continue;
+        }
+        let slide_base = slides.len() as u32;
+        let run_base = runs.len() as u32;
+        for s in &list.slides {
+            slides.push(PptSlide {
+                persist_id_ref: s.persist_id_ref,
+                c_texts: s.c_texts,
+                list_instance: list.instance,
+                sp_span: s.sp_span,
+                run_start: run_base.saturating_add(s.run_start),
+                run_end: run_base.saturating_add(s.run_end),
+            });
+        }
+        for r in &list.runs {
+            runs.push(PptRun {
+                slide: slide_base.saturating_add(r.slide),
+                kind: r.kind,
+                rec_type: r.rec_type,
+                header_span: r.header_span,
+                span: r.span,
+                text: r.text.clone(),
+            });
+        }
+    }
+    (slides, runs)
 }
 
 /// Parse the `Current User` stream's `UserEditAtom` offset, if the stream exists.
@@ -1000,8 +1192,13 @@ mod tests {
         assert_eq!(run_kind_name(RUN_CHARS), "chars");
         assert_eq!(run_kind_name(RUN_BYTES), "bytes");
         assert_eq!(slide_list_name(SLIDE_LIST_SLIDES), "slides");
-        assert_eq!(slide_list_name(SLIDE_LIST_MASTER), "master");
+        assert_eq!(slide_list_name(SLIDE_LIST_MASTER), "masters");
+        assert_eq!(slide_list_name(SLIDE_LIST_NOTES), "notes");
+        assert_eq!(slide_list_name(SLIDE_LIST_HANDOUT), "handout");
         assert_eq!(slide_list_name(7), "other");
+        assert_eq!(slide_list_from_name("masters"), Some(SLIDE_LIST_MASTER));
+        assert_eq!(slide_list_from_name("handout"), Some(SLIDE_LIST_HANDOUT));
+        assert_eq!(slide_list_from_name("nope"), None);
     }
 
     #[test]
