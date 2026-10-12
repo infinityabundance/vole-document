@@ -321,10 +321,33 @@ results: [phase-26-results.md](../phases/phase-26-results.md).
 | 26.5 population v2 | A stratified population, not a smoke, with detection reconciliation. | **Complete — shipped.** **308 samples (284 real + 24 hostile) across 41 formats**, all **byte-exact**, 0 skipped/blocked; pinned by length + SHA-256 + license + `redistributable`; **32 findings** reconciled (2 genuine adapter bugs **fixed with regression tests** — RTF trailing NUL/whitespace padding, EML RFC 2231 extended boundary; 30 recorded typed declines / detector-precedence misclassifications); `msgpack`/`fixedwidth` have no real sample (recorded); the 60-sample v1 court is the historical control. `2026-10-11-realformats-stratified-v2-703ca5ac` |
 | 26.6 pyarrow lane | Measure Arrow with a real Arrow reader, on equal contract. | **Complete — shipped.** Found and fixed a **corpus-conformance defect** (the hand-crafted IPC was not conformant: bare `Field.type` union tag, table-encoded Blocks, wrong `metaDataLength`) in the generator **and** VOLE's footer `Block` reader; added the hash-pinned **`pyarrow 25.0.1`** lane; fixtures regenerated (H1 suite `tests/arrow_adapter.rs` 13/13). Equal contract: VOLE **build ≈0.51×** and **cold**; **pyarrow wins warm ≈7.3× median** and **storage** (VOLE store ≈2.16× the Arrow file; the file ≈0.46× VOLE's store); `0 mismatches` where pyarrow answers; pyarrow **declines** exact spans (Q3) and byte authority (Q6 `not-native`). Stream fixtures without the `ARROW1` magic decline `Opaque` (recorded caveat). `2026-10-11-phase21-16-arrow-econ-74965426` |
 
-**Scope note.** The four legacy formats have **no separate economic court**: no
-faithful conventional decoder exists for legacy binary Office/MS-OXMSG, so an
-economic comparison would be `comparator_absent` (as recorded for HDF5/CFBF);
-their validation is the adapter courts plus the stratified population.
+**Scope note (closed by Phase 27.4).** The four legacy formats have **no faithful
+conventional decoder** for legacy binary Office/MS-OXMSG, so a conventional
+Lane-C comparison is `comparator_absent`. Phase 26 recorded that as *no separate
+economic court*; **Phase 27.4 closes it** — a legacy economic court now measures
+each format against a source-retaining SQLite store (Lane B, byte authority) with
+Lane C recorded as a typed `comparator_absent` decline. See
+[phase-27-results.md](../phases/phase-27-results.md).
+
+## Phase-27 outcomes (legacy depth, detection hardening, legacy economics, Arrow streams)
+
+Phase 27 closes the four gaps Phase 26's own report named. Plan:
+[phase-27-plan.md](../phases/phase-27-plan.md); results:
+[phase-27-results.md](../phases/phase-27-results.md).
+
+| Item | Question | Outcome |
+|---|---|---|
+| 27.1 DOC depth | Are the footnote/header/annotation/endnote/textbox CP sections separate typed answers? | **Complete — shipped.** Seven `ccp*` sections via `--doc-section`, each a span-preserving answer with clipped piece spans; empty sections typed empty. H1 **3/3** exact, 7/7 sections, 10/10 clipped boundary pieces. `2026-10-12-phase27-1-1-doc-section-fc5cce39` |
+| 27.2 PPT depth | Are the master/notes/handout text lists separate typed answers? | **Complete — shipped.** Every `SlideListWithText` by `recInstance` via `--ppt-list`; derived model **v2** (list arena is the source of truth). H1 **2/2** exact, 6 declines (incl. a malformed auxiliary list). `2026-10-12-phase27-2-1-ppt-lists-64626a39` |
+| 27.3 Detection hardening | Attack the recorded stratified-v2 findings. | **Complete — shipped.** Findings **32 → 25** (7 fixed), agreements **257 → 264**, **308/308 byte-exact**. Real root cause: **fragmented CFBF sector chains** (PPT/XLS header-prefix read) + ASCII-case-insensitive `Workbook` + GPX 1.0 / namespace-less KML; the rest recorded with reasons. `2026-10-12-realformats-stratified-v2-6f6f84d0` |
+| 27.4 Legacy economics | Measure doc/xls/ppt/msg against a source-retaining baseline. | **Complete — shipped.** Lane B source-retaining SQLite; Lane **C `comparator_absent`** (no faithful stdlib decoder — recorded, not fabricated). Q6 exactness **7/7 · 5/5 · 5/5 · 4/4**; VOLE cheaper build/cold/warm but **~1.2–1.4× the storage** of a bytes-only store; cold Python-startup-dominated; degenerate CIs at n=1–3. `2026-10-12-phase27-4-{doc,xls,ppt,msg}-econ-58f7572f` |
+| 27.5 Arrow streams | Detect the magic-less Arrow IPC stream framing. | **Complete — shipped.** The bare encapsulated-message stream (continuation-marked `Schema` first, end-of-stream marker) now detects, with an exact-span message inventory; the legacy no-continuation framing declines. Findings **25 → 21** (agreements **264 → 268**). Conformant stream fixture added. `2026-10-12-phase27-5-1-arrow-stream-efb51887` |
+
+**Scope note.** The remaining 21 stratified-v2 findings are **recorded** typed
+declines / detector-precedence choices with reasons
+(`tools/realcorpus/findings-v2-reconciliation.tsv`): asciidoc/rst/yaml/logstream
+precedence, cbor/eml/pptx conservatism, a Word 6.0 FIB, and a fragmented root mini
+stream. The legacy models remain bounded and the economic corpora are self-authored.
 
 ## Unmeasured gates
 

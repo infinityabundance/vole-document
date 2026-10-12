@@ -1,0 +1,8 @@
+section	cp_start	cp_end	pieces	text	source
+main	0	6	2	AAABBB	doc_sections.main.json
+footnote	6	10	2	F1F2	doc_sections.footnote.json
+header	10	13	2	HDR	doc_sections.header.json
+annotation	13	16	2	CMT	doc_sections.annotation.json
+endnote	16	19	1	END	doc_sections.endnote.json
+textbox	19	22	1	TBX	doc_sections.textbox.json
+hdrtextbox	22	22	0		doc_sections.hdrtextbox.json

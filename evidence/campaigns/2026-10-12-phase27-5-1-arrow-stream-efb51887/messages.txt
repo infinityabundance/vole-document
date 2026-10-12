@@ -1,0 +1,2 @@
+fixture	schema_messages	record_messages	eos_messages	schema_span	eos_span
+stream.arrow	1	2	1	0 192	704 712

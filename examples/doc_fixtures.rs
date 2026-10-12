@@ -17,6 +17,9 @@
 //!   piece table mixes a **compressed** (CP1252) piece, an **uncompressed** (UTF-16LE)
 //!   piece, and a footnote piece, in **both** a `0Table` and a `1Table` variant (the
 //!   non-selected table carries a decoy CLX so the `fWhichTblStm` flag is exercised);
+//! * an all-sections document whose CP space covers footnote/header/annotation/
+//!   endnote/textbox counts (an empty hdrtextbox) with pieces that cross section
+//!   boundaries (Phase 27.1);
 //! * malformed controls: a bad `wIdent`, an implausible `nFib`, an out-of-range
 //!   `fcClx`, a non-monotonic CP array, and a PCD `fc` outside the `WordDocument`
 //!   stream;
@@ -156,8 +159,7 @@ fn build_word_document(
     table_1: bool,
     fc_clx: u32,
     lcb_clx: u32,
-    ccp_text: u32,
-    ccp_ftn: u32,
+    ccp: [u32; 7],
     text: &[u8],
 ) -> Vec<u8> {
     let mut wd = vec![0u8; FIB_LEN];
@@ -179,11 +181,21 @@ fn build_word_document(
     wd[32..34].copy_from_slice(&14u16.to_le_bytes());
     // cslw = 22.
     wd[62..64].copy_from_slice(&22u16.to_le_bytes());
-    // fibRgLw97 starts at 64: cbMac, reserved1, reserved2, ccpText, ccpFtn, ccpHdd, ...
+    // fibRgLw97 starts at 64: cbMac, reserved1, reserved2, ccpText, ccpFtn, ccpHdd,
+    // (reserved3), ccpAtn, ccpEdn, ccpTxbx, ccpHdrTxbx.
     let rl = 64usize;
     wd[rl..rl + 4].copy_from_slice(&((TEXT_OFF + text.len()) as u32).to_le_bytes()); // cbMac
-    wd[rl + 12..rl + 16].copy_from_slice(&ccp_text.to_le_bytes());
-    wd[rl + 16..rl + 20].copy_from_slice(&ccp_ftn.to_le_bytes());
+    for (delta, v) in [
+        (12usize, ccp[0]),
+        (16, ccp[1]),
+        (20, ccp[2]),
+        (28, ccp[3]),
+        (32, ccp[4]),
+        (36, ccp[5]),
+        (40, ccp[6]),
+    ] {
+        wd[rl + delta..rl + delta + 4].copy_from_slice(&v.to_le_bytes());
+    }
     // cbRgFcLcb = 93 (at 64 + 88 = 152).
     wd[152..154].copy_from_slice(&93u16.to_le_bytes());
     // fibRgFcLcb starts at 154; pair 33 is fcClx/lcbClx at 154 + 33*8 = 418.
@@ -200,8 +212,7 @@ struct Layout {
     real_pieces: Vec<Piece>,
     decoy_text: Vec<u8>,
     decoy_piece: Piece,
-    ccp_text: u32,
-    ccp_ftn: u32,
+    ccp: [u32; 7],
 }
 
 /// The standard layout: a compressed piece, an uncompressed piece, a footnote, then
@@ -255,8 +266,7 @@ fn layout() -> Layout {
         real_pieces,
         decoy_text,
         decoy_piece,
-        ccp_text,
-        ccp_ftn,
+        ccp: [ccp_text, ccp_ftn, 0, 0, 0, 0, 0],
     }
 }
 
@@ -275,8 +285,7 @@ fn build_valid(ident: u16, n_fib: u16, table_1: bool) -> Vec<u8> {
         table_1,
         CLX_OFF,
         clx_real.len() as u32,
-        l.ccp_text,
-        l.ccp_ftn,
+        l.ccp,
         &text,
     );
 
@@ -307,8 +316,7 @@ fn build_bad_clx_range() -> Vec<u8> {
         false,
         1_000_000,
         clx.len() as u32,
-        l.ccp_text,
-        l.ccp_ftn,
+        l.ccp,
         &text,
     );
     build_cfbf(&[
@@ -330,8 +338,7 @@ fn build_nonmonotonic() -> Vec<u8> {
         false,
         CLX_OFF,
         clx.len() as u32,
-        l.ccp_text,
-        l.ccp_ftn,
+        l.ccp,
         &text,
     );
     build_cfbf(&[
@@ -356,8 +363,7 @@ fn build_piece_outside() -> Vec<u8> {
         false,
         CLX_OFF,
         clx.len() as u32,
-        l.ccp_text,
-        l.ccp_ftn,
+        l.ccp,
         &text,
     );
     build_cfbf(&[
@@ -379,8 +385,7 @@ fn build_fcmin_range() -> Vec<u8> {
         false,
         CLX_OFF,
         clx.len() as u32,
-        l.ccp_text,
-        l.ccp_ftn,
+        l.ccp,
         &text,
     );
     // Corrupt `fcMin` (FibBase offset 24) to a value past the stream.
@@ -397,6 +402,56 @@ fn table_stream(clx: &[u8]) -> Vec<u8> {
     let mut t = vec![0u8; CLX_OFF as usize];
     t.extend_from_slice(clx);
     t
+}
+
+/// The seven CP sections' counts for the all-sections fixture: main 6, footnote 4,
+/// header 3, annotation 3, endnote 3, textbox 3, hdrtextbox 0.
+const SECTIONS_CCP: [u32; 7] = [6, 4, 3, 3, 3, 3, 0];
+
+/// A valid `.doc` whose piece table covers every CP section, with pieces that cross
+/// section boundaries (main/footnote, footnote/header, header/annotation).
+fn build_sections() -> Vec<u8> {
+    let utf16: Vec<u8> = "BBF1"
+        .encode_utf16()
+        .flat_map(|u| u.to_le_bytes())
+        .collect();
+    let specs: [(&[u8], u32, bool); 7] = [
+        (b"AAAB", 4, true),
+        (&utf16, 4, false),
+        (b"F2H", 3, true),
+        (b"DRC", 3, true),
+        (b"MT", 2, true),
+        (b"END", 3, true),
+        (b"TBX", 3, true),
+    ];
+    let mut text = Vec::new();
+    let mut pieces = Vec::new();
+    let mut base = TEXT_OFF as u32;
+    for (bytes, cp_len, compressed) in specs {
+        let fc = base;
+        base += bytes.len() as u32;
+        text.extend_from_slice(bytes);
+        pieces.push(Piece {
+            cp_len,
+            compressed,
+            fc,
+        });
+    }
+    let clx = clx_valid(&pieces);
+    let wd = build_word_document(
+        FIB_MAGIC,
+        NFIB_WORD97,
+        false,
+        CLX_OFF,
+        clx.len() as u32,
+        SECTIONS_CCP,
+        &text,
+    );
+    build_cfbf(&[
+        ("WordDocument", wd),
+        ("0Table", table_stream(&clx)),
+        ("1Table", table_stream(&clx)),
+    ])
 }
 
 /// A generic compound file with no `WordDocument` stream.
@@ -585,6 +640,10 @@ fn main() {
     let doc1 = build_valid(FIB_MAGIC, NFIB_WORD97, true);
     write(dir, "doc_0table.doc", &doc0);
     write(dir, "doc_1table.doc", &doc1);
+    // A document whose piece table covers every CP section (footnote/header/
+    // annotation/endnote/textbox/hdrtextbox), with pieces that cross section
+    // boundaries (Phase 27.1 depth).
+    write(dir, "doc_sections.doc", &build_sections());
 
     // A bad wIdent: detection declines (the source stays Opaque).
     write(

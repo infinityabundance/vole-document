@@ -186,13 +186,16 @@ pub enum DocumentFormat {
     /// source, and the parsed footer inventory (schema, row groups, column chunks,
     /// statistics) and any decoded values are `Q_gen` projections (Phase 21.14).
     Parquet,
-    /// An Apache Arrow IPC file/stream (the source begins with the `ARROW1` magic
-    /// and is either the **file** format — a trailing `ARROW1` magic preceded by a
-    /// consistent little-endian `int32` footer length — or the **stream** format —
-    /// a valid encapsulated `Schema` message at the 8-byte magic+padding prefix).
-    /// Not a package: the exact leaf is the whole source, and the parsed schema and
-    /// record-batch inventory (with each batch's exact source span) and any decoded
-    /// columnar values are `Q_gen` projections (Phase 21.16).
+    /// An Apache Arrow IPC file/stream: either the **file** format (the source
+    /// begins and ends with the `ARROW1` magic, the 4 bytes before the trailing
+    /// magic a consistent little-endian `int32` footer length) or the **stream**
+    /// format (the bare, magic-less sequence of encapsulated messages — a
+    /// continuation-marked framing `Schema` first, ending in an end-of-stream
+    /// marker; the historical magic+padding prefix is also accepted).
+    /// Not a package: the exact leaf is the whole source, and the parsed schema,
+    /// record-batch inventory (with each batch's exact source span), and ordered
+    /// message inventory and any decoded columnar values are `Q_gen` projections
+    /// (Phase 21.16, stream framing Phase 27.5).
     ArrowIpc,
     /// A CBOR (RFC 8949) structured-tree document. CBOR has **no magic bytes**, so
     /// detection is deliberately conservative: either the self-described-CBOR tag
@@ -845,13 +848,17 @@ pub fn detect_document_format(source: &[u8], limits: Limits) -> DocumentFormat {
         return DocumentFormat::Parquet;
     }
     // Arrow IPC is the **analytical** Wave-2 format (Phase 21.16), with no package
-    // layer. Its detection is a strong magic-byte contract — the `ARROW1` magic at
-    // the start plus either a consistent trailing footer (file format) or a valid
-    // encapsulated `Schema` message (stream format) — so it runs immediately after
-    // Parquet and **before** the weak, no-magic-byte heuristics, which a binary
-    // columnar file must never be guessed to be. It is deliberately conservative:
-    // `ARROW1`-prefixed junk with neither a consistent footer nor a valid schema
-    // message stays `Opaque`.
+    // layer. Its detection is a strong contract — the `ARROW1` magic (file format:
+    // start+trailing magic with a consistent footer length; historical stream: a
+    // valid encapsulated `Schema` at the 8-byte prefix) or the **bare, magic-less**
+    // stream framing (a coherent encapsulated-message sequence: a
+    // continuation-marked `Schema` first, ending in an end-of-stream marker, Phase
+    // 27.5) — so it runs immediately after Parquet and **before** the weak,
+    // no-magic-byte heuristics, which a binary columnar file must never be guessed
+    // to be. It is deliberately conservative: `ARROW1`-prefixed junk with neither a
+    // consistent footer nor a valid schema message, and a random
+    // `0xFFFFFFFF`-prefixed blob / truncated stream / non-`Schema` first message,
+    // stay `Opaque`.
     #[cfg(feature = "arrow")]
     if crate::adapter::arrow::detect(source, limits) {
         return DocumentFormat::ArrowIpc;

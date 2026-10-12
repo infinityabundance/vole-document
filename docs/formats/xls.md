@@ -30,6 +30,18 @@ Word detector and **before** PowerPoint/MSG and the generic `Cfbf` claim. So:
 - **`.xlsx` is an OPC ZIP** and never reaches the CFBF detector at all — it is
   detected as [XLSX](xlsx.md) in the ZIP family.
 
+**Detection hardening (Phase 27.3).** The detector now reads only the stream
+**header prefix** (`cfbf::stream_leading`), so a **fragmented** `Workbook` chain
+(non-contiguous CFBF sector chain) still detects — the stream's leading bytes are
+not required to be one contiguous span. It also matches the well-known
+`Workbook`/`Book` stream name **ASCII-case-insensitively**, so a `WORKBOOK` stream
+detects. Both are regression-tested
+(`legacy_cfbf_detection::fragmented_workbook_stream_is_detected`,
+`legacy_cfbf_detection::uppercase_workbook_stream_name_is_detected`). The two real
+Apache POI `.xls` files that previously stayed `Cfbf`
+(`poi-spreadsheet-43493.xls`, `poi-spreadsheet-bug66319.xls`) now detect as `xls`;
+the real root cause was the **fragmented chain**, not the BIFF8 variant.
+
 ## Native inverse representation
 
 A bounded BIFF8 record-stream subset:
@@ -70,17 +82,25 @@ CFBF controls stay `Cfbf`; 1/1 opaque control stays `Opaque`.
 
 ## Honest negatives
 
-- **No separate economic court.** There is no faithful conventional decoder for
-  legacy BIFF8, so — exactly as for HDF5/CFBF — an economic comparison would be
-  `comparator_absent`. The validation is the adapter court plus the stratified
-  real-world population (Phase 26.5), not an economic court.
+- **Economic court (Phase 27.4).** A separate economic court now exists: a
+  source-retaining SQLite lane (**Lane B**, byte authority) is the single
+  substantive comparator, and the conventional decode-to-host-values lane
+  (**Lane C**) is `comparator_absent` — there is no faithful pure-Python/stdlib
+  decoder for legacy BIFF8, so every Lane-C question is a recorded typed decline
+  rather than a fabricated answer. VOLE exactness (Q6) is **5/5** byte-exact; VOLE
+  builds cheaper than the byte store (paired median **0.548×**) and is far cheaper
+  cold/warm, but carries **~1.19×** the storage of a bytes-only store; cold is
+  Python-startup-dominated and the single-fixture CIs are degenerate. Only Q6 is a
+  byte-authority claim.
 - **Not claimed:** BIFF5/7 (an older `Book` stream with 1-byte string lengths),
   password-encrypted/obfuscated workbooks, and the other legacy CFBF semantic
   models (see [DOC](doc.md), [PPT](ppt.md), [MSG](msg.md)).
-- **Real-world declines are expected.** In the Phase 26.5 population two genuine
-  Apache POI `.xls` files (`poi-spreadsheet-43493.xls`, `poi-spreadsheet-bug66319.xls`)
-  have a BIFF8 `Workbook`/`Book` stream whose variant this bounded detector does
-  not claim, so they stay at the generic `Cfbf` layer — a **recorded** boundary.
+- **Real-world declines were detection, not modeling.** The two genuine Apache POI
+  `.xls` files the Phase 26.5 population recorded at `Cfbf`
+  (`poi-spreadsheet-43493.xls`, `poi-spreadsheet-bug66319.xls`) were declined
+  because their `Workbook` stream is a **fragmented** CFBF sector chain; Phase 27.3
+  fixed the detector to read the stream header prefix, so they now detect as
+  `xls`.
 
 ## Relevant ADRs
 
@@ -93,6 +113,12 @@ CFBF controls stay `Cfbf`; 1/1 opaque control stays `Opaque`.
 
 - Phase 26.2.1 legacy Excel adapter court (H1 exactness 1/1):
   [2026-10-11-phase26-2-1-xls-966c3fd4](../../evidence/campaigns/2026-10-11-phase26-2-1-xls-966c3fd4/).
-- Stratified real-world population v2 (Phase 26.5):
+- Phase 27.3 detection hardening (fragmented chain + case-insensitive
+  `Workbook`): `tests/legacy_cfbf_detection.rs`.
+- Phase 27.4 legacy Excel **economic** court (Lane B source-retaining SQLite, Lane
+  C `comparator_absent`; exactness 5/5):
+  [2026-10-12-phase27-4-xls-econ-58f7572f](../../evidence/campaigns/2026-10-12-phase27-4-xls-econ-58f7572f/).
+- Stratified real-world population v2 (Phase 26.5; re-run under 27.3/27.5):
   [2026-10-11-realformats-stratified-v2-703ca5ac](../../evidence/campaigns/2026-10-11-realformats-stratified-v2-703ca5ac/).
-- Results: [phase-26-results.md](../phases/phase-26-results.md).
+- Results: [phase-26-results.md](../phases/phase-26-results.md),
+  [phase-27-results.md](../phases/phase-27-results.md).

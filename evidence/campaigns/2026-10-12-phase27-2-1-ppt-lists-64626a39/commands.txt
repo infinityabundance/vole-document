@@ -1,0 +1,19 @@
+docker compose run --rm --no-TTY dev sh tools/phase27-2-1-ppt-lists-court.sh
+# inside the court:
+#   cargo build --locked --all-features
+#   cargo run --locked --all-features --example ppt_fixtures -- CORPUS
+#   target/debug/vole-document field-build FIXTURE --store STORE --voldoc F.voldoc
+#   target/debug/vole-document observe --store STORE --field HEX
+#       (--metadata|--ppt-text|--ppt-document|--ppt-slide 0|--ppt-slide 1|--ppt-run 0|--ppt-run 1|--ppt-record 0|--ppt-list slides|--ppt-list masters|--ppt-list notes|--ppt-list handout|--ppt-find PAT)
+#       --kind metadata|text|exact
+#   rm source F.voldoc
+#   target/debug/vole-document materialize --store STORE --field HEX --exact --output OUT ; cmp OUT source
+# Full gate (dev service):
+#   cargo fmt --all --check
+#   cargo clippy --all-targets --all-features -- -D warnings
+#   cargo test --locked --all-features   (use CARGO_PROFILE_TEST_DEBUG=0 if the all-features link OOM-kills)
+#   cargo test --locked --features ppt
+#   PPT regression control: sh tools/phase26-3-1-ppt-court.sh
+#   DOC regression control: sh tools/phase26-1-1-doc-court.sh
+#   CFBF regression control: sh tools/phase21-35-1-cfbf-court.sh
+#   MSRV: docker compose run --rm --no-TTY msrv cargo build --locked --all-features

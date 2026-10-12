@@ -358,6 +358,96 @@ def probes_for(fmt, q, plan):
             return [(["--cfbf-stream", st, "--kind", "exact"], "exact")]
         if q == "Q12":
             return [(["--cfbf-stream", st, "--kind", "metadata"], "structure")]
+    if fmt == "doc":
+        p = str(plan["piece"])
+        if q == "Q1":
+            return [(["--doc-piece", p, "--kind", "text"], "text")]
+        if q == "Q2":
+            return [(["--doc-piece", p, "--kind", "metadata"], "structure")]
+        if q == "Q3":
+            return [(["--doc-fib", "--kind", "text"], "text")]
+        if q in ("Q4", "Q5"):
+            return [(["--doc-fib", "--kind", "metadata"], "metadata")]
+        if q == "Q7":
+            return [(["--doc-find", plan["find"], "--kind", "text"], "text")]
+        if q == "Q8":
+            return [(["--doc-piece", p, "--kind", "exact"], "exact")]
+        if q == "Q9":
+            return [(["--doc-section", plan["section"], "--kind", "text"], "text")]
+        if q in ("Q10", "Q12"):
+            return [(["--doc-piece", p, "--kind", "metadata"], "structure")]
+        if q == "Q11":
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+    if fmt == "xls":
+        s = str(plan["sheet"])
+        c = str(plan["cell"])
+        r = str(plan["record"])
+        if q == "Q1":
+            return [(["--xls-sheet", s, "--kind", "text"], "text")]
+        if q in ("Q2", "Q5"):
+            return [(["--xls-sheet", s, "--kind", "metadata"], "structure")]
+        if q == "Q3":
+            return [(["--xls-biff", "--kind", "text"], "text")]
+        if q == "Q4":
+            return [(["--xls-biff", "--kind", "metadata"], "metadata")]
+        if q == "Q7":
+            return [(["--xls-find", plan["find"], "--kind", "text"], "text")]
+        if q == "Q8":
+            return [(["--xls-cell", c, "--kind", "exact"], "exact")]
+        if q == "Q9":
+            return [(["--xls-cell", c, "--kind", "text"], "text")]
+        if q == "Q10":
+            return [(["--xls-cell", c, "--kind", "metadata"], "structure")]
+        if q == "Q11":
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+        if q == "Q12":
+            return [(["--xls-record", r, "--kind", "metadata"], "structure")]
+    if fmt == "ppt":
+        s = str(plan["slide"])
+        r = str(plan["run"])
+        rc_ = str(plan["record"])
+        if q == "Q1":
+            return [(["--ppt-slide", s, "--kind", "text"], "text")]
+        if q in ("Q2", "Q5"):
+            return [(["--ppt-slide", s, "--kind", "metadata"], "structure")]
+        if q == "Q3":
+            return [(["--ppt-document", "--kind", "text"], "text")]
+        if q == "Q4":
+            return [(["--ppt-document", "--kind", "metadata"], "metadata")]
+        if q == "Q7":
+            return [(["--ppt-find", plan["find"], "--kind", "text"], "text")]
+        if q == "Q8":
+            return [(["--ppt-run", r, "--kind", "exact"], "exact")]
+        if q == "Q9":
+            return [(["--ppt-list", plan["list"], "--kind", "text"], "text")]
+        if q == "Q10":
+            return [(["--ppt-run", r, "--kind", "metadata"], "structure")]
+        if q == "Q11":
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+        if q == "Q12":
+            return [(["--ppt-record", rc_, "--kind", "metadata"], "structure")]
+    if fmt == "msg":
+        p = str(plan["property"])
+        rec = str(plan["recipient"])
+        att = str(plan["attachment"])
+        if q == "Q1":
+            return [(["--msg-property", p, "--kind", "text"], "text")]
+        if q in ("Q2", "Q10"):
+            return [(["--msg-property", p, "--kind", "metadata"], "structure")]
+        if q == "Q3":
+            return [(["--msg-summary", "--kind", "text"], "text")]
+        if q in ("Q4", "Q9"):
+            return [(["--msg-summary", "--kind", "metadata"], "metadata")]
+        if q == "Q5":
+            return [(["--msg-recipient", rec, "--kind", "metadata"], "structure")]
+        if q == "Q7":
+            return [(["--msg-find", plan["find"], "--kind", "text"], "text")]
+        if q == "Q8":
+            return [(["--msg-property", p, "--kind", "exact"], "exact")]
+        if q == "Q11":
+            return [(["--metadata", "--kind", "metadata"], "metadata")]
+        if q == "Q12":
+            return [(["--msg-attachment", att, "--kind", "metadata"], "structure")]
     return []
 
 
@@ -837,6 +927,133 @@ def answer(fmt, q, plan, answers, rcs):
                 return envelope(q, v.get("format"))
             if q == "Q12":
                 return envelope(q, v.get("data_span"))
+        if fmt == "doc":
+            if q in ("Q1", "Q3", "Q9"):
+                return envelope(q, {"kind": "string", "value": a.get("text")})
+            if q == "Q2":
+                return envelope(q, a.get("source_span"))
+            if q == "Q4":
+                return envelope(q, v.get("pieces"))
+            if q == "Q5":
+                return envelope(q, {"version": v.get("version"), "nFib": v.get("nFib"),
+                                    "table": v.get("table"), "pieces": v.get("pieces"),
+                                    "ccp_text": v.get("ccp_text"),
+                                    "ccp_ftn": v.get("ccp_ftn"),
+                                    "wd_span": v.get("wd_span"),
+                                    "clx_span": v.get("clx_span")})
+            if q == "Q7":
+                ms = v.get("matches") or []
+                return envelope(q, sorted(json.dumps(m, sort_keys=True) for m in ms))
+            if q == "Q8":
+                return envelope(q, {"sha256": a.get("bytes_sha256"),
+                                    "len": a.get("bytes_len")})
+            if q == "Q10":
+                return envelope(q, {"compressed": v.get("compressed")})
+            if q == "Q11":
+                return envelope(q, v.get("format"))
+            if q == "Q12":
+                return envelope(q, v.get("doc_span"))
+        if fmt == "xls":
+            if q in ("Q1", "Q3", "Q9"):
+                return envelope(q, {"kind": "string", "value": a.get("text")})
+            if q == "Q2":
+                return envelope(q, a.get("source_span"))
+            if q == "Q4":
+                return envelope(q, v.get("sheets"))
+            if q == "Q5":
+                return envelope(q, {"index": v.get("index"), "name": v.get("name"),
+                                    "pos": v.get("pos"), "type": v.get("type"),
+                                    "state": v.get("state"),
+                                    "rec_span": v.get("rec_span"),
+                                    "bof_span": v.get("bof_span")})
+            if q == "Q7":
+                ms = v.get("matches") or []
+                return envelope(q, sorted(json.dumps(m, sort_keys=True) for m in ms))
+            if q == "Q8":
+                return envelope(q, {"sha256": a.get("bytes_sha256"),
+                                    "len": a.get("bytes_len")})
+            if q == "Q10":
+                return envelope(q, {"index": v.get("index"), "row": v.get("row"),
+                                    "col": v.get("col"), "span": v.get("span"),
+                                    "value": v.get("value")})
+            if q == "Q11":
+                return envelope(q, v.get("format"))
+            if q == "Q12":
+                return envelope(q, {"id": v.get("id"), "id_hex": v.get("id_hex"),
+                                    "len": v.get("len"),
+                                    "stream_off": v.get("stream_off"),
+                                    "span": v.get("span"),
+                                    "payload": v.get("payload")})
+        if fmt == "ppt":
+            if q in ("Q1", "Q3", "Q9"):
+                return envelope(q, {"kind": "string", "value": a.get("text")})
+            if q == "Q2":
+                return envelope(q, a.get("source_span"))
+            if q == "Q4":
+                return envelope(q, v.get("slides"))
+            if q == "Q5":
+                return envelope(q, {"index": v.get("index"),
+                                    "persist_id_ref": v.get("persist_id_ref"),
+                                    "c_texts": v.get("c_texts"),
+                                    "list": v.get("list"),
+                                    "sp_span": v.get("sp_span"),
+                                    "runs": v.get("runs")})
+            if q == "Q7":
+                ms = v.get("matches") or []
+                return envelope(q, sorted(json.dumps(m, sort_keys=True) for m in ms))
+            if q == "Q8":
+                return envelope(q, {"sha256": a.get("bytes_sha256"),
+                                    "len": a.get("bytes_len")})
+            if q == "Q10":
+                return envelope(q, {"index": v.get("index"), "slide": v.get("slide"),
+                                    "kind": v.get("kind"), "type": v.get("type"),
+                                    "span": v.get("span"),
+                                    "header_span": v.get("header_span"),
+                                    "text": v.get("text")})
+            if q == "Q11":
+                return envelope(q, v.get("format"))
+            if q == "Q12":
+                return envelope(q, {"id": v.get("id"), "id_hex": v.get("id_hex"),
+                                    "type": v.get("type"),
+                                    "rec_ver": v.get("rec_ver"),
+                                    "rec_instance": v.get("rec_instance"),
+                                    "len": v.get("len"), "depth": v.get("depth"),
+                                    "stream_off": v.get("stream_off"),
+                                    "span": v.get("span"),
+                                    "payload": v.get("payload")})
+        if fmt == "msg":
+            if q in ("Q1", "Q3"):
+                return envelope(q, {"kind": "string", "value": a.get("text")})
+            if q == "Q2":
+                return envelope(q, a.get("source_span"))
+            if q == "Q4":
+                return envelope(q, v.get("properties"))
+            if q == "Q5":
+                return envelope(q, {"kind": v.get("kind"), "index": v.get("index"),
+                                    "id": v.get("id"),
+                                    "dir_index": v.get("dir_index"),
+                                    "span": v.get("span"),
+                                    "props_span": v.get("props_span"),
+                                    "properties": v.get("properties")})
+            if q == "Q7":
+                ms = v.get("matches") or []
+                return envelope(q, sorted(json.dumps(m, sort_keys=True) for m in ms))
+            if q == "Q8":
+                return envelope(q, {"sha256": a.get("bytes_sha256"),
+                                    "len": a.get("bytes_len")})
+            if q == "Q9":
+                return envelope(q, v.get("substreams"))
+            if q == "Q10":
+                return envelope(q, {"index": v.get("index"),
+                                    "tag_hex": v.get("tag_hex"),
+                                    "id_hex": v.get("id_hex"),
+                                    "property": v.get("property"),
+                                    "type_name": v.get("type_name"),
+                                    "span": v.get("span"), "owner": v.get("owner")})
+            if q == "Q11":
+                return envelope(q, v.get("format"))
+            if q == "Q12":
+                return envelope(q, v.get("span"))
     except (KeyError, TypeError, ValueError) as e:
         return envelope(q, declined=True, code="extract-error", reason=str(e))
     return envelope(q, declined=True, code="unknown-question", reason=q)

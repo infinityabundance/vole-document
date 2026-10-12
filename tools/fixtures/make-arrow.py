@@ -8,9 +8,11 @@
 # union `Field.type` values are present (an empty table for tag-only types) and the
 # footer's `recordBatches` is a vector of `Block` *structs*. The reference reader
 # (`pyarrow`) accepts the file-format output, which the Phase-26.6 pyarrow lane uses
-# to measure Arrow on its own terms. (The *stream*-format fixture additionally keeps
-# a leading 8-byte `ARROW1`+padding prefix, matching VOLE's stream detection; that
-# prefix is a VOLE convenience, not part of the Arrow streaming spec.)
+# to measure Arrow on its own terms. The *stream*-format fixture is the genuine
+# spec framing: a bare, **magic-less** sequence of encapsulated messages (a
+# continuation-marked `Schema` first, ending in an end-of-stream marker), exactly
+# what `pyarrow.ipc.new_stream` emits. (Before Phase 27.5 the stream fixture carried
+# a leading 8-byte `ARROW1`+padding prefix, a VOLE convenience that is now retired.)
 #
 #   python3 tools/fixtures/make-arrow.py                # write tools/fixtures/arrow/
 #   python3 tools/fixtures/make-arrow.py --corpus DIR   # write DIR/, print TSV
@@ -490,8 +492,15 @@ def record_batch_message(columns, rows, compression=None):
 
 def write_file(path, fields, batches, stream=False):
     """`fields` is a list of (name, type_spec, nullable, dict_id);
-    `batches` is a list of (columns, rows) where columns are (ts, values)."""
-    out = bytearray(MAGIC + b"\x00\x00")
+    `batches` is a list of (columns, rows) where columns are (ts, values).
+
+    The **stream** format is the bare, spec framing: the encapsulated messages
+    (starting with the `Schema`) with **no** magic prefix, ending in an
+    end-of-stream marker. The file format keeps the `ARROW1`+padding prefix and
+    the trailing footer + `ARROW1`."""
+    out = bytearray()
+    if not stream:
+        out += MAGIC + b"\x00\x00"
     out += schema_message(fields)
     blocks = []
     for (columns, rows) in batches:
@@ -499,10 +508,8 @@ def write_file(path, fields, batches, stream=False):
         msg, body_len = record_batch_message(columns, rows)
         out += msg
         blocks.append((start, message_meta_len(msg), body_len))
-    if stream:
-        out += struct.pack("<I", CONT) + struct.pack("<i", 0)  # EOS
-    else:
-        out += struct.pack("<I", CONT) + struct.pack("<i", 0)  # EOS inside file
+    out += struct.pack("<I", CONT) + struct.pack("<i", 0)  # EOS
+    if not stream:
         footer = flatbuf(lambda b: build_footer(b, build_schema(b, fields), blocks))
         out += footer
         out += struct.pack("<i", len(footer))

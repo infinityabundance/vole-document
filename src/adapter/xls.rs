@@ -884,7 +884,11 @@ pub fn detect(source: &[u8], limits: Limits) -> bool {
     let Some(entry) = find_workbook(&model) else {
         return false;
     };
-    let Ok(wb) = crate::adapter::cfbf::stream_bytes(source, entry) else {
+    // Read only the `BOF` prefix: a genuine `.xls` whose `Workbook`/`Book` chain
+    // is **fragmented** is still a `.xls`, and its leading `BOF` lives in the
+    // stream's first chunk. Detection therefore reads the prefix rather than
+    // requiring the whole stream to be one contiguous span.
+    let Ok(wb) = crate::adapter::cfbf::stream_leading(source, &model, entry, 8) else {
         return false;
     };
     if wb.len() < 8 {
@@ -1551,13 +1555,19 @@ impl<'a> SstReader<'a> {
 }
 
 /// Find the `Workbook` (preferred) or legacy `Book` stream, with its name marker.
+/// The well-known name is matched **ASCII-case-insensitively**: some real writers
+/// uppercase it (a `WORKBOOK` stream that opens with a BIFF8 `BOF` is a workbook).
 fn find_workbook_named(
     model: &crate::adapter::cfbf::CfbfModel,
 ) -> Option<(&crate::adapter::cfbf::CfbfEntry, u8)> {
-    if let Some(e) = find_named(model, STREAM_WORKBOOK) {
+    if let Some(e) =
+        find_named(model, STREAM_WORKBOOK).or_else(|| find_named_ci(model, STREAM_WORKBOOK))
+    {
         return Some((e, NAME_WORKBOOK));
     }
-    find_named(model, STREAM_BOOK).map(|e| (e, NAME_BOOK))
+    find_named(model, STREAM_BOOK)
+        .or_else(|| find_named_ci(model, STREAM_BOOK))
+        .map(|e| (e, NAME_BOOK))
 }
 
 /// Find the `Workbook`/`Book` stream entry (used by detection).
@@ -1575,6 +1585,17 @@ fn find_named<'a>(
     model.entries.iter().find(|e| {
         e.obj_type == crate::adapter::cfbf::OBJ_STREAM
             && crate::adapter::cfbf::entry_name_text(e) == name
+    })
+}
+
+/// Find a directory stream entry by an ASCII-case-insensitive well-known name.
+fn find_named_ci<'a>(
+    model: &'a crate::adapter::cfbf::CfbfModel,
+    name: &str,
+) -> Option<&'a crate::adapter::cfbf::CfbfEntry> {
+    model.entries.iter().find(|e| {
+        e.obj_type == crate::adapter::cfbf::OBJ_STREAM
+            && crate::adapter::cfbf::entry_name_text(e).eq_ignore_ascii_case(name)
     })
 }
 

@@ -46,25 +46,31 @@
 //! detector:
 //!
 //! * **KML** — the root element is `<kml>` whose namespace prefix is bound to the
-//!   KML namespace URI `http://www.opengis.net/kml/2.2`, and the root has at least
-//!   one recognized structural child (`Document`, `Folder`, or `Placemark`);
+//!   KML namespace URI `http://www.opengis.net/kml/2.2` **or** which declares no
+//!   default namespace (a namespace-less `<kml>`), and the root has at least one
+//!   recognized structural child (`Document`, `Folder`, or `Placemark`);
 //! * **GPX** — the root element is `<gpx>` whose namespace prefix is bound to the
-//!   GPX namespace URI `http://www.topografix.com/GPX/1/1`, and the root has at
-//!   least one recognized structural child (`metadata`, `wpt`, `rte`, or `trk`).
+//!   GPX namespace URI `http://www.topografix.com/GPX/1/1` **or** the older GPX 1.0
+//!   URI `http://www.topografix.com/GPX/1/0`, and the root has at least one
+//!   recognized structural child (`metadata`, `wpt`, `rte`, or `trk`).
 //!
 //! Everything else declines: a plain XML document stays
 //! [`Xml`](crate::field::document_format::DocumentFormat::Xml), an HTML document
 //! (already claimed earlier) stays `Html`, and a `<kml>`/`<gpx>`-shaped-but-invalid
-//! document (no namespace, or no recognized structural child), and a non-geospatial
-//! root all decline and stay on the XML/opaque path.
+//! document (a `<kml>` bound to a *different* default namespace, a namespace-less
+//! `<gpx>`, or no recognized structural child), and a non-geospatial root all
+//! decline and stay on the XML/opaque path.
 //!
 //! ### What the detector cannot distinguish (recorded honestly)
 //!
 //! * **Older / other KML namespace versions** — KML 2.0 (`…/kml/2.0`) and KML 2.1
 //!   (`…/kml/2.1`), and the pre-OGC Google Earth namespaces, are **not** the OGC
-//!   KML 2.2 URI, so they stay `Xml`. Only the KML 2.2 URI is claimed.
-//! * **GPX 1.0** — its namespace URI is `http://www.topografix.com/GPX/1/0`, not the
-//!   GPX 1.1 URI, so it stays `Xml`. Only the GPX 1.1 URI is claimed.
+//!   KML 2.2 URI, so they stay `Xml`. Only the KML 2.2 URI, or a genuinely
+//!   namespace-less `<kml>` root, is claimed.
+//! * **GPX 1.1 and 1.0 share one dialect** — both namespace URIs (`…/GPX/1/1` and
+//!   `…/GPX/1/0`) are claimed as [`DIALECT_GPX`]; the version is preserved verbatim
+//!   in the source but is not a separate model dialect. A namespace-less `<gpx>`
+//!   still stays `Xml`.
 //! * **A namespaced KML/GPX in a non-default prefix** — e.g. `<k:kml
 //!   xmlns:k="…/kml/2.2">` — **is** recognized (the bound prefix is read, not the
 //!   default one), exactly as for Atom in the feed adapter.
@@ -108,6 +114,8 @@ pub const DIALECT_GPX: u8 = 1;
 pub const KML_NS: &str = "http://www.opengis.net/kml/2.2";
 /// The GPX 1.1 namespace URI.
 pub const GPX_NS: &str = "http://www.topografix.com/GPX/1/1";
+/// The GPX 1.0 namespace URI (the older, still-common GPX dialect).
+pub const GPX_1_0_NS: &str = "http://www.topografix.com/GPX/1/0";
 
 /// Stable name for a dialect tag.
 pub const fn dialect_name(d: u8) -> &'static str {
@@ -611,7 +619,13 @@ fn analyze(xml: &XmlModel, source: &[u8], limits: Limits) -> Result<(u8, Vec<u32
     let (prefix, local) = split_qname(full);
     match local {
         "kml" => {
-            if !ns_in_force(xml, source, xml.root, prefix, KML_NS)? {
+            // Accept the OGC KML 2.2 namespace, or a **namespace-less** `<kml>` root
+            // (a real KML writer may omit the default namespace); a `<kml>` bound to
+            // some *other* default namespace declines. The structural-child test below
+            // remains the strong signal, so a bare `<kml>` still stays `Xml`.
+            let kml_ns = ns_in_force(xml, source, xml.root, prefix, KML_NS)?;
+            let namespace_less = prefix.is_empty() && !declares_ns(xml, source, xml.root, "")?;
+            if !kml_ns && !namespace_less {
                 return Err(invalid_gis(
                     "`<kml>` is not in the KML namespace (http://www.opengis.net/kml/2.2)",
                 ));
@@ -627,9 +641,13 @@ fn analyze(xml: &XmlModel, source: &[u8], limits: Limits) -> Result<(u8, Vec<u32
             Ok((DIALECT_KML, records, points))
         }
         "gpx" => {
-            if !ns_in_force(xml, source, xml.root, prefix, GPX_NS)? {
+            // Accept both the GPX 1.1 and the older GPX 1.0 namespace; both are the
+            // same `gpx` dialect (the version is preserved verbatim in the source).
+            if !ns_in_force(xml, source, xml.root, prefix, GPX_NS)?
+                && !ns_in_force(xml, source, xml.root, prefix, GPX_1_0_NS)?
+            {
                 return Err(invalid_gis(
-                    "`<gpx>` is not in the GPX namespace (http://www.topografix.com/GPX/1/1)",
+                    "`<gpx>` is not in the GPX namespace (http://www.topografix.com/GPX/1/1 or /GPX/1/0)",
                 ));
             }
             if !has_child_in(xml, source, xml.root, GPX_CHILDREN)? {
@@ -822,6 +840,33 @@ fn ns_in_force(xml: &XmlModel, source: &[u8], node: u32, prefix: &str, uri: &str
     Ok(false)
 }
 
+/// Whether the element `node` declares **any** binding for the namespace `prefix`
+/// (empty for the default namespace). Distinguishes a namespace-less element from
+/// one bound to a different URI.
+fn declares_ns(xml: &XmlModel, source: &[u8], node: u32, prefix: &str) -> Result<bool> {
+    let n = xml
+        .node(node)
+        .ok_or_else(|| corrupt("geospatial root node is out of range"))?;
+    for &a in &n.attrs {
+        let attr = xml
+            .attr(a)
+            .ok_or_else(|| corrupt("geospatial attribute index is out of range"))?;
+        if attr.is_ns == 0 {
+            continue;
+        }
+        let name = attr_name(source, attr)?;
+        let matches = if prefix.is_empty() {
+            name == "xmlns"
+        } else {
+            name.strip_prefix("xmlns:") == Some(prefix)
+        };
+        if matches {
+            return Ok(true);
+        }
+    }
+    Ok(false)
+}
+
 fn corrupt(msg: &str) -> Error {
     Error::invalid_gis_structure(msg)
 }
@@ -904,8 +949,19 @@ mod tests {
         assert_eq!(classify(GPX, Limits::DEFAULT).unwrap(), DIALECT_GPX);
         // A plain XML document is not geospatial.
         assert!(classify(b"<a><b>text</b></a>", Limits::DEFAULT).is_err());
-        // `<kml>` with no KML namespace declines.
-        assert!(classify(b"<kml><Document/></kml>", Limits::DEFAULT).is_err());
+        // A **namespace-less** `<kml>` with a structural child is KML (Phase 27.3).
+        assert_eq!(
+            classify(b"<kml><Document/></kml>", Limits::DEFAULT).unwrap(),
+            DIALECT_KML
+        );
+        // A `<kml>` bound to a *different* default namespace declines.
+        assert!(
+            classify(
+                b"<kml xmlns=\"urn:not-kml\"><Document/></kml>",
+                Limits::DEFAULT
+            )
+            .is_err()
+        );
         // `<kml>` in the KML namespace but with no structural child declines.
         assert!(
             classify(
@@ -914,7 +970,16 @@ mod tests {
             )
             .is_err()
         );
-        // `<gpx>` with no GPX namespace declines.
+        // GPX 1.0 (the older URI) is the same `gpx` dialect (Phase 27.3).
+        assert_eq!(
+            classify(
+                b"<gpx xmlns=\"http://www.topografix.com/GPX/1/0\"><wpt lat=\"0\" lon=\"0\"/></gpx>",
+                Limits::DEFAULT
+            )
+            .unwrap(),
+            DIALECT_GPX
+        );
+        // `<gpx>` with no GPX namespace declines (kept conservative).
         assert!(classify(b"<gpx><wpt/></gpx>", Limits::DEFAULT).is_err());
         // `<gpx>` in the GPX namespace but with no structural child declines.
         assert!(

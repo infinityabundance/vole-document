@@ -548,6 +548,7 @@ pub fn plan(manifest: &FieldRoot, store: &FieldStore, req: &ObserveRequest) -> R
         (Selector::DocFib, R::Metadata | R::Structure | R::Text)
         | (Selector::DocPiece { .. }, R::Metadata | R::Structure | R::ExactBytes | R::Text)
         | (Selector::DocText, R::Metadata | R::Structure | R::Text)
+        | (Selector::DocSection { .. }, R::Metadata | R::Structure | R::Text)
         | (Selector::DocFind { .. }, R::Text | R::Metadata | R::Structure) => Ok(ObservePlan {
             shape: PlanShape::DeepenThenObserve,
             index_reads: 1,

@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
-# Phase 21.20-21.26 — the CONFIG / FEED / GEOJSON / GIS / NOTEBOOK / TABULAR
-# (PSV + fixed-width) / RST / ASCIIDOC / MDX ECONOMIC courts (shared engine).
+# Phase 21.20-21.35 + 27.4 — the CONFIG / FEED / GEOJSON / GIS / NOTEBOOK / TABULAR
+# (PSV + fixed-width) / RST / ASCIIDOC / MDX / MHTML / LOGSTREAM / PKGMETA /
+# APISPEC / BIB / RTF / CONTAINER / HDF / CFBF / legacy-OFFICE (doc/xls/ppt/msg)
+# ECONOMIC courts (shared engine).
 #
 # One engine, parameterised by FORMAT
-# (config|feed|geojson|gis|notebook|tabular|rst|asciidoc|mdx), so the courts
-# cannot drift apart. Pre-registered. Hypotheses:
+# (config|feed|geojson|gis|notebook|tabular|rst|asciidoc|mdx|…|doc|xls|ppt|msg),
+# so the courts cannot drift apart. Pre-registered. Hypotheses:
 #
 #   H1 (byte-exactness / Q6) — for every corpus fixture (including the malformed and
 #       Opaque controls), VOLE `materialize --exact == source` (length + SHA-256 +
@@ -44,6 +46,17 @@
 #   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-26-1-rst-econ-court.sh
 #   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-26-2-asciidoc-econ-court.sh
 #   docker compose run --rm --no-TTY doc-baseline bash tools/phase21-26-3-mdx-econ-court.sh
+#
+# Phase 27.4 — the four legacy CFBF-backed Office formats. Lane C (the
+# conventional decode-to-host-values load) is `comparator_absent`: there is no
+# faithful pure-Python/stdlib decoder for `.doc`/`.xls`/`.ppt`/`.msg`, so every
+# Lane-C question is a typed `comparator_absent` decline, exactly like HDF5/CFBF.
+# The source-retaining SQLite lane keeps the raw bytes (byte authority) and
+# declines every structural question typed:
+#   docker compose run --rm --no-TTY doc-baseline bash tools/phase27-4-doc-econ-court.sh
+#   docker compose run --rm --no-TTY doc-baseline bash tools/phase27-4-xls-econ-court.sh
+#   docker compose run --rm --no-TTY doc-baseline bash tools/phase27-4-ppt-econ-court.sh
+#   docker compose run --rm --no-TTY doc-baseline bash tools/phase27-4-msg-econ-court.sh
 
 set -uo pipefail
 cd /work
@@ -70,6 +83,10 @@ case "$FORMAT" in
     container) PHASE=21.33; PHASETAG=21-33; FMTNAME="archive container (ZIP/TAR)" ;;
     hdf)      PHASE=21.34; PHASETAG=21-34; FMTNAME="scientific container (NetCDF/HDF5)" ;;
     cfbf)     PHASE=21.35; PHASETAG=21-35; FMTNAME="CFBF/OLE2 compound file" ;;
+    doc)      PHASE=27.4; PHASETAG=27-4; FMTNAME="legacy Word 97–2003 (.doc, MS-DOC)" ;;
+    xls)      PHASE=27.4; PHASETAG=27-4; FMTNAME="legacy Excel 97–2003 (.xls, BIFF8)" ;;
+    ppt)      PHASE=27.4; PHASETAG=27-4; FMTNAME="legacy PowerPoint 97–2003 (.ppt, MS-PPT)" ;;
+    msg)      PHASE=27.4; PHASETAG=27-4; FMTNAME="legacy Outlook message (.msg, MS-OXMSG)" ;;
     *) echo "unknown format: $FORMAT" >&2; exit 2 ;;
 esac
 
@@ -115,11 +132,15 @@ case "$FORMAT" in
     container) OWN="--container-dialect --kind text";           FOREIGN="--hdf-dialect --kind text" ;;
     hdf)      OWN="--hdf-dialect --kind text";                 FOREIGN="--cfbf-dialect --kind text" ;;
     cfbf)     OWN="--cfbf-dialect --kind text";                FOREIGN="--mhtml-root --kind metadata" ;;
+    doc)      OWN="--doc-fib --kind structure";                 FOREIGN="--xls-biff --kind structure" ;;
+    xls)      OWN="--xls-biff --kind structure";                FOREIGN="--ppt-document --kind structure" ;;
+    ppt)      OWN="--ppt-document --kind structure";             FOREIGN="--msg-summary --kind structure" ;;
+    msg)      OWN="--msg-summary --kind structure";              FOREIGN="--doc-fib --kind structure" ;;
 esac
 
 WRAPFILE="tools/phase${PHASETAG}-${FORMAT}-court.sh"
 case "$FORMAT" in
-    tabular|rst|asciidoc|mdx|mhtml|logstream|pkgmeta|apispec|bib|rtf|container|hdf|cfbf)
+    tabular|rst|asciidoc|mdx|mhtml|logstream|pkgmeta|apispec|bib|rtf|container|hdf|cfbf|doc|xls|ppt|msg)
         WRAPFILE="tools/phase${PHASETAG}-${FORMAT}-econ-court.sh" ;;
 esac
 
@@ -574,6 +595,30 @@ case "$FORMAT" in
         DECLINES='a compound file with a plausible header but a malformed body (invalid directory object type, cyclic FAT chain, truncated stream chain) detects as cfbf and declines typed InvalidCfbfStructure (rc 51); a signature-only blob, a corrupted signature, a bad sector shift, an out-of-range directory sector and prose stay opaque (rc 6); never a panic'
         DETECTION='CFBF detection is content-only and strong-magic based: the 8-byte D0CF11E0A1B11AE1 signature at offset 0, a v3/v4 major version, a valid byte order and a plausible sector/mini-sector shift'
         RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 51 invalid-cfbf-structure'
+        ;;
+    doc)
+        SURFACE='the reused CFBF/OLE2 physical layer plus the Word 97–2003 (MS-DOC) semantic model: the FIB (wIdent 0xA5EC, nFib/version, the fWhichTblStm table selection, fcMin/fcMac, the ccp* section counts, fcClx/lcbClx), the piece table (each piece CP range, resolved fc, compressed flag, exact WordDocument-stream byte span, decoded text, and the exact bytes), the CP sections (main/footnote/header/annotation/endnote/textbox/hdrtextbox), and the document text'
+        DECLINES='an out-of-range --doc-piece/--doc-section and a doc selector on a foreign format decline typed (rc 6); a doc with a bad wIdent/nFib detects as cfbf and a native doc selector on it declines typed (rc 6); a compound file whose body is structurally invalid but detects as doc declines typed InvalidDocStructure (rc 52); prose stays opaque (rc 6), never a panic'
+        DETECTION='content-only, never a file name: the source must be a valid CFBF/OLE2 compound file with a WordDocument stream whose FIB carries wIdent 0xA5EC and a plausible Word 97 nFib; a generic compound file and a bad-ident/bad-nFib doc stay cfbf and are never stolen'
+        RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 52 invalid-doc-structure'
+        ;;
+    xls)
+        SURFACE='the reused CFBF/OLE2 physical layer plus the Excel 97–2003 (BIFF8) semantic model: the BIFF header (version, Workbook/Book stream selection, root substream type, record count, stream span), the BOUNDSHEET inventory (name, BOF stream position, sheet type, visibility state, spans), the cells (kind, row/column, exact record span, exact stored value spelling), the sheet-ordered canonical text, and the ordered BIFF records'
+        DECLINES='an out-of-range --xls-sheet/--xls-cell/--xls-record declines typed (rc 6); an xls with a bad BOF version or an unrecognized substream type detects as cfbf and a native xls selector on it declines typed (rc 6); a structurally invalid workbook that detects as xls declines typed InvalidXlsStructure (rc 53); prose stays opaque (rc 6), never a panic'
+        DETECTION='content-only, never a file name: the source must be a CFBF/OLE2 compound file with a Workbook/Book stream whose first record is a BIFF8 BOF (version 0x0600, globals substream); a generic compound file and a bad-BOF/bad-subtype workbook stay cfbf and are never stolen'
+        RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 53 invalid-xls-structure'
+        ;;
+    ppt)
+        SURFACE='the reused CFBF/OLE2 physical layer plus the PowerPoint 97–2003 (MS-PPT) semantic model: the Document header (record/slide/run counts, Current User presence, stream span), the ordered MS-PPT records, the slides (persistIdRef, cTexts, list, spans), the text runs (slide, kind, exact atom span, decoded text, exact bytes), and every SlideListWithText list (slides/masters/notes/handout)'
+        DECLINES='an out-of-range --ppt-slide/--ppt-run/--ppt-record/--ppt-list and an out-of-range list name decline typed (rc 6); a first record that is not a Document container detects as cfbf and a native ppt selector on it declines typed (rc 6); a structurally invalid presentation that detects as ppt declines typed InvalidPptStructure (rc 54); prose stays opaque (rc 6), never a panic'
+        DETECTION='content-only, never a file name: the source must be a CFBF/OLE2 compound file with a PowerPoint Document stream whose first record is the Document container (recType 1000); a generic compound file and a non-Document first record stay cfbf and are never stolen'
+        RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 54 invalid-ppt-structure'
+        ;;
+    msg)
+        SURFACE='the reused CFBF/OLE2 physical layer plus the Outlook message (MS-OXMSG) semantic model: the __properties_version1.0 header and its fixed-size property entries (tag, id, property name, type, flags, value bytes, span, owner), the __substg1.0_* substreams, the one-level recipient and attachment sub-storages with their own property lists and substreams, and the canonical decoded text'
+        DECLINES='an out-of-range --msg-property/--msg-recipient/--msg-attachment declines typed (rc 6); a compound file with no root __properties_version1.0 detects as cfbf and a native msg selector on it declines typed (rc 6); a structurally invalid message that detects as msg declines typed InvalidMsgStructure (rc 55); prose stays opaque (rc 6), never a panic'
+        DETECTION='content-only, never a file name: the source must be a CFBF/OLE2 compound file whose root storage carries a __properties_version1.0 stream with a valid 32-byte message header; a generic compound file and a missing-properties file stay cfbf and are never stolen'
+        RC_CODES='0 ok; 6 unsupported-feature; 2 usage; 8 resource-limit; 55 invalid-msg-structure'
         ;;
 esac
 

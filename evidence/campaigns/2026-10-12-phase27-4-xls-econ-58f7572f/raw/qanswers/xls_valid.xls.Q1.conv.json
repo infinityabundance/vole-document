@@ -1,0 +1,1 @@
+{"decline": {"code": "comparator_absent", "detail": "legacy Excel 97\u20132003 (.xls, BIFF8) has no faithful Python-stdlib decoder, so Lane C declines every question as comparator_absent"}, "declined": true, "detail": {}, "lane": "conv", "native": true, "q": "Q1", "value": null}

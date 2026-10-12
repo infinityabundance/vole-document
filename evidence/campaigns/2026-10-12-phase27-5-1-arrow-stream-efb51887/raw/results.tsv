@@ -1,0 +1,8 @@
+fixture	format	src_len	src_sha	out_len	out_sha	cmp	exact	want
+stream.arrow	arrow	712	f8b90691cea943d28aa44132857278a2f0aa90f0c2c92af1d1261ef277e7fb77	712	f8b90691cea943d28aa44132857278a2f0aa90f0c2c92af1d1261ef277e7fb77	true	true	arrow
+primitives.arrow	arrow	2778	259ab9a702b53da4390a6fae60af7b769dc3c8c5702dfc394c81eb1378301371	2778	259ab9a702b53da4390a6fae60af7b769dc3c8c5702dfc394c81eb1378301371	true	true	arrow
+junk_cont.bin	opaque	128	57d650c981b9b666d23b1bd1ba180b0a20e749acb8681c9ee743cae42e3967ad	n/a	n/a	n/a	n/a	opaque
+truncated_stream.bin	opaque	64	40d27c03078d8ed0d7c67c693a471a418fa7f3445fcdfc06b055050d5fc5c804	n/a	n/a	n/a	n/a	opaque
+nonschema_first.bin	opaque	520	0049c767e914d8f8dc4652f35f8c4ed22a41812b4a0076b941777dc369e5b513	n/a	n/a	n/a	n/a	opaque
+legacy_stream.bin	opaque	196	48ac7c843e75e2479884729d1b1c79bc3d2cd31161b676e9a8cf685b1f8e2251	n/a	n/a	n/a	n/a	opaque
+prose.txt	opaque	63	3a7ee35c399784ddd536738e80ee28fc2c76b248f22be7e37e69d33a398c4d8a	n/a	n/a	n/a	n/a	opaque

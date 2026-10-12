@@ -1,0 +1,21 @@
+{
+  "campaign": "evidence/campaigns/2026-10-12-phase21-16-arrow-econ-efb51887",
+  "phase": "26.6 — Arrow IPC analytical economic court (VOLE vs SQLite vs DuckDB vs pyarrow)",
+  "utc": "2026-10-12T10:26:42Z",
+  "measured_commit": "efb518870be41aa67ca1bd307f3e91bd13022cfd",
+  "tree_state": " M src/adapter/arrow.rs  M src/field/document_format.rs  M src/field/observe.rs  M tests/arrow_adapter.rs  M tools/fixtures/arrow/stream.arrow  M tools/fixtures/make-arrow.py  M tools/realcorpus/findings-v2-reconciliation.tsv  M tools/realformats-stratified-v2-court.sh ?? evidence/campaigns/2026-10-12-phase21-16-arrow-econ-efb51887/ ?? evidence/campaigns/2026-10-12-phase27-5-1-arrow-stream-efb51887/ ?? tools/phase27-5-1-arrow-stream-court.sh ",
+  "service": "analytical",
+  "profile": "release",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "cae0fbffa5c1f5892f0a0c3af3a1b2dc454dd4495c5eda47d5e66f6e0e873900",
+  "duckdb_version": "1.5.6",
+  "pyarrow_version": "25.0.1",
+  "lanes": ["vole", "sqlite", "duckdb", "pyarrow"],
+  "questions": {"Q1": "column values", "Q2": "predicate count", "Q3": "buffer span + min/max", "Q4": "record-batch count", "Q5": "lexical find count", "Q6": "exact closure"},
+  "invariant": "materialize(field) == source (length + SHA-256 + cmp) after source AND descriptor deletion",
+  "exact_ok": 3,
+  "exact_n": 3,
+  "verdict_rule": "FAIL only if VOLE exactness is not 100% (or a cross-lane mismatch is recorded)",
+  "honest_scope": "self-authored corpus; only Q6 is a byte-authority claim; DuckDB reads a Parquet projection (its wheel has no Arrow IPC reader) while the pyarrow lane opens the Arrow IPC file directly; both decline Q3 (no source span/statistics) and Q6 (not a source-retaining store)",
+  "verdict": "PASS"
+}

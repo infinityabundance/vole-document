@@ -1,0 +1,1 @@
+{"decline": null, "declined": false, "detail": {}, "lane": "vole", "native": true, "q": "Q12", "value": {"depth": 1, "id": 4080, "id_hex": "0x0FF0", "len": 108, "payload": [528, 636], "rec_instance": 0, "rec_ver": 15, "span": [520, 636], "stream_off": 8, "type": "slide-list-with-text"}}

@@ -47,7 +47,8 @@ use crate::adapter::arrow::{
     ArrowModel, LeafColumn as ArrowLeaf, Value as ArrowValue, batch_detail as arrow_batch_detail,
     cell_value as arrow_cell_value, column_bytes as arrow_column_bytes,
     column_span as arrow_column_span, column_values as arrow_column_values,
-    type_name as arrow_type_name, value_text as arrow_value_text,
+    message_kind_name as arrow_message_kind_name, type_name as arrow_type_name,
+    value_text as arrow_value_text,
 };
 #[cfg(feature = "asciidoc")]
 use crate::adapter::asciidoc::{
@@ -111,8 +112,10 @@ use crate::adapter::csv::{
 };
 #[cfg(feature = "doc")]
 use crate::adapter::doc::{
-    DocModel, DocPiece, canonical_text as doc_canonical_text, field_name as doc_field_name,
-    find as doc_find_matches, piece_bytes as doc_piece_bytes, piece_text as doc_piece_text,
+    DocModel, DocPiece, DocSection, canonical_text as doc_canonical_text,
+    field_name as doc_field_name, find as doc_find_matches, piece_bytes as doc_piece_bytes,
+    piece_text as doc_piece_text, section_piece_source_span as doc_section_piece_source_span,
+    section_piece_text as doc_section_piece_text, section_pieces as doc_section_pieces,
     version_name as doc_version_name,
 };
 #[cfg(feature = "docx")]
@@ -285,9 +288,10 @@ use crate::adapter::pkgmeta::{
 };
 #[cfg(feature = "ppt")]
 use crate::adapter::ppt::{
-    PptModel, PptRun, PptSlide, canonical_text as ppt_canonical_text, field_name as ppt_field_name,
-    find as ppt_find_matches, record_type_name as ppt_record_type_name,
-    run_kind_name as ppt_run_kind_name, slide_list_name as ppt_slide_list_name,
+    PptList, PptModel, PptRun, PptSlide, canonical_text as ppt_canonical_text,
+    field_name as ppt_field_name, find as ppt_find_matches,
+    record_type_name as ppt_record_type_name, run_kind_name as ppt_run_kind_name,
+    slide_list_name as ppt_slide_list_name,
 };
 #[cfg(feature = "pptx")]
 use crate::adapter::pptx::{
@@ -2127,6 +2131,19 @@ pub enum Selector {
         /// The pattern (case-sensitive substring).
         pattern: String,
     },
+    /// One CP section of a legacy Word 97–2003 (`.doc`, MS-DOC) source (Phase 27.1):
+    /// `main`, `footnote`, `header`, `annotation`, `endnote`, `textbox`, or
+    /// `hdrtextbox`. The section's CP range is the cumulative `ccp*` span over the
+    /// piece table; `Text` returns its concatenated decoded text and `Metadata`/
+    /// `Structure` a descriptor with the CP range and the ordered, span-clipped pieces
+    /// that fall in it (each with its exact `WordDocument` byte span, compressed flag,
+    /// and decoded text). A section whose `ccp*` count is zero is a typed **empty**
+    /// answer, never an error.
+    #[cfg(feature = "doc")]
+    DocSection {
+        /// The CP section to materialize.
+        section: DocSection,
+    },
     /// The legacy Excel 97–2003 (`.xls`, BIFF8) BIFF header (Phase 26.2): the BIFF
     /// version with its name, the `Workbook`/`Book` stream selection, the root substream
     /// type, the record count, and the exact stream span. `Text` returns the BIFF
@@ -2208,6 +2225,19 @@ pub enum Selector {
     PptFind {
         /// The pattern (case-sensitive substring).
         pattern: String,
+    },
+    /// One `SlideListWithText` list (Phase 27.2) of a legacy PowerPoint 97–2003
+    /// (`.ppt`) presentation, selected by `recInstance`: `slides` (0), `masters` (1),
+    /// `notes` (2), or `handout` (3). The list is materialized as its own typed answer:
+    /// the ordered `SlidePersistAtom` entries (`persistIdRef`, `cTexts`) and, for each,
+    /// the ordered text runs (`TextCharsAtom` UTF-16LE / `TextBytesAtom` CP1252) with
+    /// their exact atom/header spans and decoded text, in order. An absent or empty list
+    /// is a typed **empty** answer, never an error.
+    #[cfg(feature = "ppt")]
+    PptList {
+        /// The `SlideListWithText` instance (0 = slides, 1 = masters, 2 = notes,
+        /// 3 = handout).
+        instance: u16,
     },
     /// The legacy Outlook message (`.msg`, MS-OXMSG) summary (Phase 26.4): the message
     /// header, the property/substream/recipient/attachment counts, the aggregate
@@ -2895,6 +2925,8 @@ impl Selector {
             Selector::DocText => "doc-text".to_string(),
             #[cfg(feature = "doc")]
             Selector::DocFind { pattern } => format!("doc-find:{pattern}"),
+            #[cfg(feature = "doc")]
+            Selector::DocSection { section } => format!("doc-section:{}", section.name()),
             #[cfg(feature = "xls")]
             Selector::XlsBiff => "xls-biff".to_string(),
             #[cfg(feature = "xls")]
@@ -2915,6 +2947,10 @@ impl Selector {
             Selector::PptRecord { index } => format!("ppt-record:{index}"),
             #[cfg(feature = "ppt")]
             Selector::PptFind { pattern } => format!("ppt-find:{pattern}"),
+            #[cfg(feature = "ppt")]
+            Selector::PptList { instance } => {
+                format!("ppt-list:{}", ppt_slide_list_name(*instance))
+            }
             #[cfg(feature = "msg")]
             Selector::MsgSummary => "msg-summary".to_string(),
             #[cfg(feature = "msg")]
@@ -5325,6 +5361,10 @@ impl<S: SeedStore> Ctx<'_, S> {
             (Selector::DocFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.doc_find(req, pattern)
             }
+            #[cfg(feature = "doc")]
+            (Selector::DocSection { section }, R::Text | R::Metadata | R::Structure) => {
+                self.doc_section(req, *section)
+            }
             #[cfg(feature = "xls")]
             (Selector::XlsBiff, R::Text | R::Metadata | R::Structure) => self.xls_biff(req),
             #[cfg(feature = "xls")]
@@ -5362,6 +5402,10 @@ impl<S: SeedStore> Ctx<'_, S> {
             #[cfg(feature = "ppt")]
             (Selector::PptFind { pattern }, R::Text | R::Metadata | R::Structure) => {
                 self.ppt_find(req, pattern)
+            }
+            #[cfg(feature = "ppt")]
+            (Selector::PptList { instance }, R::Text | R::Metadata | R::Structure) => {
+                self.ppt_list(req, *instance)
             }
             #[cfg(feature = "msg")]
             (Selector::MsgSummary, R::Text | R::Metadata | R::Structure) => self.msg_summary(req),
@@ -15365,6 +15409,113 @@ impl<S: SeedStore> Ctx<'_, S> {
         Ok(self.doc_answer(req, value, provenance, None, vec![model_id, root]))
     }
 
+    /// One CP section (Phase 27.1): the concatenation of the clipped piece texts over
+    /// the section's cumulative `ccp*` CP range. A zero-length section is a typed
+    /// **empty** answer, never an error.
+    fn doc_section(&mut self, req: &ObserveRequest, section: DocSection) -> Result<FieldAnswer> {
+        let (model, model_id) = self.doc_model()?;
+        let (_, root) = self.doc_source()?;
+        let (cp_start, cp_end) = model.fib.section_range(section);
+        let pieces = doc_section_pieces(&model, section);
+        let empty = cp_start >= cp_end;
+        let mut units: Vec<u16> = Vec::new();
+        for p in &pieces {
+            units.extend_from_slice(&p.text);
+        }
+        let text = String::from_utf16_lossy(&units);
+        // A section answer is only derived text; the budget bounds it like the main text.
+        let span = if empty { None } else { Some(model.wd_span) };
+        if req.representation == Representation::Text {
+            if text.len() as u64 > req.budget.max_output_bytes {
+                return Err(Error::resource_limit(format!(
+                    "doc section text exceeded the {}-byte budget",
+                    req.budget.max_output_bytes
+                )));
+            }
+            let provenance = format!(
+                "doc;section={};cp={cp_start}:{cp_end};pieces={};empty={empty}",
+                section.name(),
+                pieces.len()
+            );
+            return Ok(self.doc_answer(
+                req,
+                AnswerValue::Text(text),
+                provenance,
+                span,
+                vec![model_id, root],
+            ));
+        }
+        let json =
+            Self::doc_section_json(&model, section, &pieces, &text, (cp_start, cp_end), empty);
+        if json.len() as u64 > req.budget.max_output_bytes {
+            return Err(Error::resource_limit(format!(
+                "doc section descriptor exceeded the {}-byte budget",
+                req.budget.max_output_bytes
+            )));
+        }
+        let provenance = format!(
+            "doc;section={};cp={cp_start}:{cp_end};pieces={};empty={empty}",
+            section.name(),
+            pieces.len()
+        );
+        Ok(self.doc_answer(
+            req,
+            AnswerValue::Json(json),
+            provenance,
+            span,
+            vec![model_id, root],
+        ))
+    }
+
+    /// A section descriptor: the section name and FIB field, its CP range, the ordered
+    /// clipped pieces (piece index, clipped CP range, compressed flag, exact
+    /// `WordDocument`-stream byte span, decoded text), and the concatenated text.
+    fn doc_section_json(
+        model: &DocModel,
+        section: DocSection,
+        pieces: &[crate::adapter::doc::DocSectionPiece],
+        text: &str,
+        cps: (u64, u64),
+        empty: bool,
+    ) -> String {
+        let mut ps: Vec<String> = Vec::with_capacity(pieces.len());
+        for p in pieces {
+            let doc_span = doc_section_piece_source_span(model, p);
+            ps.push(format!(
+                concat!(
+                    "{{\"piece\":{},\"cp_start\":{},\"cp_end\":{},\"compressed\":{},",
+                    "\"units\":{},\"span\":[{},{}],\"doc_span\":[{},{}],\"text\":\"{}\"}}"
+                ),
+                p.piece,
+                p.cp_start,
+                p.cp_end,
+                p.compressed,
+                p.text.len(),
+                p.span.0,
+                p.span.1,
+                doc_span.0,
+                doc_span.1,
+                json_escape(&doc_section_piece_text(p)),
+            ));
+        }
+        format!(
+            concat!(
+                "{{\"format\":\"doc\",\"section\":\"{}\",\"fib_field\":\"{}\",",
+                "\"cp_start\":{},\"cp_end\":{},\"empty\":{},\"pieces\":{},",
+                "\"text_units\":{},\"text\":\"{}\",\"section_pieces\":[{}]}}"
+            ),
+            section.name(),
+            section.fib_field(),
+            cps.0,
+            cps.1,
+            empty,
+            pieces.len(),
+            text.encode_utf16().count(),
+            json_escape(text),
+            ps.join(","),
+        )
+    }
+
     // -- common -----------------------------------------------------------------
 
     fn common_doc(&mut self, req: &ObserveRequest) -> Result<FieldAnswer> {
@@ -15754,12 +15905,14 @@ impl<S: SeedStore> Ctx<'_, S> {
         format!(
             concat!(
                 "{{\"format\":\"ppt\",\"version\":\"{}\",\"stream\":\"{}\",",
-                "\"records\":{},\"slides\":{},\"runs\":{},\"chars\":{},\"bytes\":{},",
-                "\"text_units\":{},\"current_user\":{},\"stream_span\":[{},{}]}}"
+                "\"records\":{},\"lists\":{},\"slides\":{},\"runs\":{},\"chars\":{},",
+                "\"bytes\":{},\"text_units\":{},\"current_user\":{},",
+                "\"stream_span\":[{},{}]}}"
             ),
             "powerpoint97-2003",
             crate::adapter::ppt::STREAM_POWERPOINT_DOCUMENT,
             model.records.len(),
+            model.lists.len(),
             model.slides.len(),
             model.runs.len(),
             model.char_runs(),
@@ -15955,6 +16108,127 @@ impl<S: SeedStore> Ctx<'_, S> {
             out.join(",")
         ));
         Ok(self.ppt_answer(req, value, provenance, None, vec![model_id, root]))
+    }
+
+    /// One `SlideListWithText` list (Phase 27.2): its ordered slides and, per slide, the
+    /// ordered text runs with their exact spans and decoded text. An absent or empty
+    /// list is a typed **empty** answer, never an error.
+    fn ppt_list(&mut self, req: &ObserveRequest, instance: u16) -> Result<FieldAnswer> {
+        let (model, model_id) = self.ppt_model()?;
+        let (_, root) = self.ppt_source()?;
+        let name = ppt_slide_list_name(instance);
+        let span = model.list(instance).map(|l| l.span);
+        let list = model.list(instance);
+        let slides_n = list.map(|l| l.slides.len()).unwrap_or(0);
+        let runs_n = list.map(|l| l.runs.len()).unwrap_or(0);
+        let text_units: u64 = list
+            .map(|l| l.runs.iter().map(|r| r.text.len() as u64).sum())
+            .unwrap_or(0);
+        let empty = slides_n == 0;
+        let text = list.map(PptList::text).unwrap_or_default();
+        let provenance = format!(
+            "ppt;list={name};rec_instance={instance};slides={slides_n};runs={runs_n};empty={empty}"
+        );
+        let value = match req.representation {
+            Representation::Text => {
+                if text.len() as u64 > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "ppt list text exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+                AnswerValue::Text(text)
+            }
+            _ => {
+                let json = Self::ppt_list_json(name, instance, &model, &text, text_units, empty);
+                if json.len() as u64 > req.budget.max_output_bytes {
+                    return Err(Error::resource_limit(format!(
+                        "ppt list descriptor exceeded the {}-byte budget",
+                        req.budget.max_output_bytes
+                    )));
+                }
+                AnswerValue::Json(json)
+            }
+        };
+        Ok(self.ppt_answer(req, value, provenance, span, vec![model_id, root]))
+    }
+
+    /// A `SlideListWithText` list descriptor: the list name and `recInstance`, the exact
+    /// container span, the ordered slides (each with its `persistIdRef`, `cTexts`, exact
+    /// `SlidePersistAtom` span, and its ordered runs with exact atom/header spans and
+    /// decoded text), and the concatenated text.
+    fn ppt_list_json(
+        name: &str,
+        instance: u16,
+        model: &PptModel,
+        text: &str,
+        text_units: u64,
+        empty: bool,
+    ) -> String {
+        let list = model.list(instance);
+        let (span0, span1) = list.map(|l| l.span).unwrap_or((0, 0));
+        let slides_n = list.map(|l| l.slides.len()).unwrap_or(0);
+        let runs_n = list.map(|l| l.runs.len()).unwrap_or(0);
+        let mut slides: Vec<String> = Vec::new();
+        if let Some(list) = list {
+            for (i, slide) in list.slides.iter().enumerate() {
+                let mut slide_text = String::new();
+                let mut runs: Vec<String> = Vec::new();
+                for (k, run) in list.slide_runs(slide).iter().enumerate() {
+                    if k > 0 {
+                        slide_text.push('\n');
+                    }
+                    slide_text.push_str(&String::from_utf16_lossy(&run.text));
+                    runs.push(format!(
+                        concat!(
+                            "{{\"kind\":\"{}\",\"type\":\"{}\",\"rec_type\":{},",
+                            "\"span\":[{},{}],\"header_span\":[{},{}],\"text\":\"{}\"}}"
+                        ),
+                        ppt_run_kind_name(run.kind),
+                        ppt_record_type_name(run.rec_type),
+                        run.rec_type,
+                        run.span.0,
+                        run.span.1,
+                        run.header_span.0,
+                        run.header_span.1,
+                        json_escape(&String::from_utf16_lossy(&run.text)),
+                    ));
+                }
+                slides.push(format!(
+                    concat!(
+                        "{{\"index\":{},\"persist_id_ref\":{},\"c_texts\":{},",
+                        "\"sp_span\":[{},{}],\"runs\":[{},{}],\"text\":\"{}\",",
+                        "\"slide_runs\":[{}]}}"
+                    ),
+                    i,
+                    slide.persist_id_ref,
+                    slide.c_texts,
+                    slide.sp_span.0,
+                    slide.sp_span.1,
+                    slide.run_start,
+                    slide.run_end,
+                    json_escape(&slide_text),
+                    runs.join(","),
+                ));
+            }
+        }
+        format!(
+            concat!(
+                "{{\"format\":\"ppt\",\"list\":\"{}\",\"rec_instance\":{},",
+                "\"empty\":{},\"span\":[{},{}],\"slides\":{},\"runs\":{},",
+                "\"text_units\":{},\"text\":\"{}\",\"list_slides\":[{}]}}"
+            ),
+            name,
+            instance,
+            empty,
+            span0,
+            span1,
+            slides_n,
+            runs_n,
+            text_units,
+            json_escape(text),
+            slides.join(","),
+        )
     }
 
     // -- common -----------------------------------------------------------------
@@ -21181,17 +21455,37 @@ impl<S: SeedStore> Ctx<'_, S> {
         let (model, model_id) = self.arrow_model()?;
         let (_source, root) = self.arrow_source()?;
         let rows: i64 = model.batches.iter().map(|b| b.num_rows.max(0)).sum();
+        let messages: Vec<String> = model
+            .messages
+            .iter()
+            .map(|m| {
+                format!(
+                    concat!(
+                        "{{\"kind\":\"{}\",\"span\":[{},{}]",
+                        ",\"metadata\":{},\"body\":[{},{}]}}"
+                    ),
+                    arrow_message_kind_name(m.kind),
+                    m.span_start,
+                    m.span_end,
+                    m.meta_len,
+                    m.body_offset,
+                    m.body_len
+                )
+            })
+            .collect();
         let value = AnswerValue::Json(format!(
             concat!(
                 "{{\"format\":\"arrow\",\"stream\":{},\"version\":{}",
-                ",\"columns\":{},\"batches\":{},\"rows\":{},\"bytes\":{}}}"
+                ",\"columns\":{},\"batches\":{},\"rows\":{},\"bytes\":{}",
+                ",\"messages\":[{}]}}"
             ),
             model.stream,
             model.version,
             model.leaves.len(),
             model.batches.len(),
             rows,
-            model.doc_len
+            model.doc_len,
+            messages.join(",")
         ));
         Ok(self.arrow_answer(
             req,

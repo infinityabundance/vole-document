@@ -1,0 +1,16 @@
+docker compose run --rm --no-TTY dev sh tools/phase27-1-1-doc-section-court.sh
+# inside the court:
+#   cargo build --locked --all-features
+#   cargo run --locked --all-features --example doc_fixtures -- CORPUS
+#   target/debug/vole-document field-build FIXTURE --store STORE --voldoc F.voldoc
+#   target/debug/vole-document observe --store STORE --field HEX --doc-section NAME --kind text|metadata
+#   target/debug/vole-document observe --store STORE --field HEX (--metadata|--doc-text|--doc-fib|--doc-piece 0|--doc-find PAT) --kind metadata|text|exact
+#   rm source F.voldoc
+#   target/debug/vole-document materialize --store STORE --field HEX --exact --output OUT ; cmp OUT source
+# Full gate (dev service):
+#   cargo fmt --all --check
+#   cargo clippy --all-targets --all-features -- -D warnings
+#   cargo test --locked --all-features   (use CARGO_PROFILE_TEST_DEBUG=0 if the all-features link OOM-kills)
+#   cargo test --locked --features doc
+#   Regression controls: sh tools/phase26-1-1-doc-court.sh ; sh tools/phase21-35-1-cfbf-court.sh
+#   MSRV: docker compose run --rm --no-TTY msrv cargo build --locked --all-features

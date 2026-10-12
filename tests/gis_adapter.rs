@@ -9,9 +9,11 @@
 //! dialect recorded. The court checks:
 //!
 //! 1. **Byte-based detection and the boundaries**: a KML `<kml
-//!    xmlns="…/kml/2.2">` with a `Document` child → `Gis`; a GPX `<gpx
-//!    xmlns="…/GPX/1/1">` with a `wpt`/`trk` child → `Gis`; a plain XML document
-//!    stays `Xml`; a shaped-but-invalid `<kml>`/`<gpx>` (wrong/no namespace, or no
+//!    xmlns="…/kml/2.2">` with a `Document` child → `Gis`; a namespace-less
+//!    `<kml>` with a structural child → `Gis`; a GPX `<gpx
+//!    xmlns="…/GPX/1/1">` (or the older `…/GPX/1/0`) with a `wpt`/`trk` child →
+//!    `Gis`; a plain XML document stays `Xml`; a shaped-but-invalid `<kml>`/`<gpx>`
+//!    (a `<kml>` bound to a different namespace, a namespace-less `<gpx>`, or no
 //!    structural child) stays `Xml`; prose stays `Opaque`.
 //! 2. **Representation preservation**: the recorded dialect; exact element/attribute
 //!    spans; element order; attribute spelling (KML `<coordinates>`, GPX
@@ -172,7 +174,8 @@ const GPX: &[u8] = b"<?xml version=\"1.0\"?>\n\
 
 /// A plain XML document: not geospatial (stays `Xml`).
 const PLAIN_XML: &[u8] = b"<note><to>Tove</to><from>Jani</from></note>";
-/// A `<kml>` root with no KML namespace: not geospatial (stays `Xml`).
+/// A `<kml>` root with no default namespace but a structural child **is** KML
+/// (Phase 27.3: a namespace-less KML root is claimed).
 const NO_NS_KML: &[u8] = b"<kml><Document><Placemark/></Document></kml>";
 /// A `<kml>` root in the KML namespace with no structural child (stays `Xml`).
 const NO_CHILD_KML: &[u8] = b"<kml xmlns=\"http://www.opengis.net/kml/2.2\"/>";
@@ -195,7 +198,8 @@ fn detection_is_byte_based_and_conservative() {
         // The documented boundaries: plain XML / shaped-but-invalid stay `Xml`;
         // prose stays `Opaque`. (The `xml` feature is implied by `gis`.)
         (PLAIN_XML, DocumentFormat::Xml),
-        (NO_NS_KML, DocumentFormat::Xml),
+        // A namespace-less `<kml>` with a structural child is claimed (Phase 27.3).
+        (NO_NS_KML, DocumentFormat::Gis),
         (NO_CHILD_KML, DocumentFormat::Xml),
         (NO_NS_GPX, DocumentFormat::Xml),
         (NO_CHILD_GPX, DocumentFormat::Xml),

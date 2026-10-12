@@ -1,0 +1,1 @@
+{"decline": {"code": "not-native", "detail": "pyarrow is a reader over the Arrow IPC file, not a source-retaining archival store: the lane artifact is the unmodified source"}, "declined": true, "detail": {}, "lane": "pyarrow", "native": false, "q": "Q6", "value": null}

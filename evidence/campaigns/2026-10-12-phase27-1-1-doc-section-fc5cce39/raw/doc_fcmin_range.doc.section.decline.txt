@@ -1,0 +1,1 @@
+error: InvalidDocStructure: doc: fcMin or fcMac is outside the WordDocument stream

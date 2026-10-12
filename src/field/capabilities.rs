@@ -354,7 +354,13 @@ const HDF_NATIVE: &[&str] = &[
 
 const CFBF_NATIVE: &[&str] = &["cfbf-dialect", "cfbf-entry", "cfbf-stream", "cfbf-find"];
 
-const DOC_NATIVE: &[&str] = &["doc-fib", "doc-piece", "doc-text", "doc-find"];
+const DOC_NATIVE: &[&str] = &[
+    "doc-fib",
+    "doc-piece",
+    "doc-section",
+    "doc-text",
+    "doc-find",
+];
 
 const XLS_NATIVE: &[&str] = &[
     "xls-biff",
@@ -369,6 +375,7 @@ const PPT_NATIVE: &[&str] = &[
     "ppt-slide",
     "ppt-run",
     "ppt-record",
+    "ppt-list",
     "ppt-find",
 ];
 

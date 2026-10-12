@@ -72,6 +72,15 @@ const BYTES_TEXT: &[u8] = b"Caf\xE9 \x80";
 /// The decoded form of `BYTES_TEXT` under CP1252.
 const BYTES_DECODED: &str = "Café €";
 
+/// Phase 27.2 aux-list fixture texts.
+const MASTER_TEXT: &str = "Master Title";
+const NOTES_CHARS: &str = "Speaker notes";
+/// CP1252 bytes for "Pöints" (`ö` = 0xF6).
+const NOTES_BYTES: &[u8] = b"P\xF6ints";
+/// The decoded form of `NOTES_BYTES` under CP1252.
+const NOTES_BYTES_DECODED: &str = "Pöints";
+const HANDOUT_TEXT: &str = "Handout footer";
+
 fn utf16le(name: &str) -> Vec<u8> {
     let mut out = Vec::new();
     for u in name.encode_utf16() {
@@ -306,6 +315,7 @@ struct Opts {
     trailing_truncated: bool,
     bad_current_user: bool,
     no_current_user: bool,
+    bad_aux_list: bool,
 }
 
 fn powerpoint_document(o: &Opts) -> Vec<u8> {
@@ -341,6 +351,29 @@ fn powerpoint_document(o: &Opts) -> Vec<u8> {
         REC_SLIDE_LIST_WITH_TEXT,
         &slwt,
     );
+    if o.bad_aux_list {
+        // A notes list (recInstance 2) whose TextCharsAtom payload length is odd: it was
+        // previously skipped, and is now modeled, so it declines typed (Phase 27.2).
+        let mut notes: Vec<u8> = Vec::new();
+        rec(
+            &mut notes,
+            0,
+            0,
+            REC_SLIDE_PERSIST_ATOM,
+            &slide_persist_atom(9, 1),
+        );
+        rec(&mut notes, 0, 0, REC_TEXT_HEADER_ATOM, &[0u8; 4]);
+        let mut odd = utf16_units("odd");
+        odd.push(0);
+        rec(&mut notes, 0, 0, REC_TEXT_CHARS_ATOM, &odd);
+        rec(
+            &mut doc_payload,
+            REC_VER_CONTAINER,
+            2,
+            REC_SLIDE_LIST_WITH_TEXT,
+            &notes,
+        );
+    }
     rec(&mut doc_payload, 0, 0, REC_END_DOCUMENT, &[]);
 
     let mut stream: Vec<u8> = Vec::new();
@@ -392,6 +425,182 @@ fn build_ppt(o: &Opts) -> Vec<u8> {
 
 fn build_valid() -> Vec<u8> {
     build_ppt(&Opts::default())
+}
+
+/// Build a `Document` stream carrying all four `SlideListWithText` lists, each with
+/// text runs (`masters`/`notes`/`handout` were previously skipped).
+fn lists_document() -> Vec<u8> {
+    let mut doc: Vec<u8> = Vec::new();
+    // slides list (recInstance 0): persist 1 (UTF-16LE) + persist 2 (CP1252).
+    let mut slwt: Vec<u8> = Vec::new();
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_SLIDE_PERSIST_ATOM,
+        &slide_persist_atom(1, 1),
+    );
+    rec(&mut slwt, 0, 0, REC_TEXT_HEADER_ATOM, &[0u8; 4]);
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_TEXT_CHARS_ATOM,
+        &utf16_units(CHARS_TEXT),
+    );
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_SLIDE_PERSIST_ATOM,
+        &slide_persist_atom(2, 1),
+    );
+    rec(&mut slwt, 0, 0, REC_TEXT_HEADER_ATOM, &[0u8; 4]);
+    rec(&mut slwt, 0, 0, REC_TEXT_BYTES_ATOM, BYTES_TEXT);
+    rec(
+        &mut doc,
+        REC_VER_CONTAINER,
+        0,
+        REC_SLIDE_LIST_WITH_TEXT,
+        &slwt,
+    );
+    // masters list (recInstance 1): one slide with a UTF-16LE run.
+    let mut slwt: Vec<u8> = Vec::new();
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_SLIDE_PERSIST_ATOM,
+        &slide_persist_atom(3, 1),
+    );
+    rec(&mut slwt, 0, 0, REC_TEXT_HEADER_ATOM, &[0u8; 4]);
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_TEXT_CHARS_ATOM,
+        &utf16_units(MASTER_TEXT),
+    );
+    rec(
+        &mut doc,
+        REC_VER_CONTAINER,
+        1,
+        REC_SLIDE_LIST_WITH_TEXT,
+        &slwt,
+    );
+    // notes list (recInstance 2): one slide with two runs (UTF-16LE then CP1252).
+    let mut slwt: Vec<u8> = Vec::new();
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_SLIDE_PERSIST_ATOM,
+        &slide_persist_atom(4, 2),
+    );
+    rec(&mut slwt, 0, 0, REC_TEXT_HEADER_ATOM, &[0u8; 4]);
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_TEXT_CHARS_ATOM,
+        &utf16_units(NOTES_CHARS),
+    );
+    rec(&mut slwt, 0, 0, REC_TEXT_HEADER_ATOM, &[0u8; 4]);
+    rec(&mut slwt, 0, 0, REC_TEXT_BYTES_ATOM, NOTES_BYTES);
+    rec(
+        &mut doc,
+        REC_VER_CONTAINER,
+        2,
+        REC_SLIDE_LIST_WITH_TEXT,
+        &slwt,
+    );
+    // handout list (recInstance 3): one slide with a UTF-16LE run.
+    let mut slwt: Vec<u8> = Vec::new();
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_SLIDE_PERSIST_ATOM,
+        &slide_persist_atom(5, 1),
+    );
+    rec(&mut slwt, 0, 0, REC_TEXT_HEADER_ATOM, &[0u8; 4]);
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_TEXT_CHARS_ATOM,
+        &utf16_units(HANDOUT_TEXT),
+    );
+    rec(
+        &mut doc,
+        REC_VER_CONTAINER,
+        3,
+        REC_SLIDE_LIST_WITH_TEXT,
+        &slwt,
+    );
+    rec(&mut doc, 0, 0, REC_END_DOCUMENT, &[]);
+
+    let mut stream: Vec<u8> = Vec::new();
+    stream.extend_from_slice(&(REC_VER_CONTAINER as u16).to_le_bytes());
+    stream.extend_from_slice(&REC_DOCUMENT.to_le_bytes());
+    stream.extend_from_slice(&(doc.len() as u32).to_le_bytes());
+    stream.extend_from_slice(&doc);
+    stream
+}
+
+fn build_lists() -> Vec<u8> {
+    build_cfbf(&[
+        ("PowerPoint Document", lists_document()),
+        ("Current User", current_user(false)),
+    ])
+}
+
+/// A `Document` stream with the slides list and a **present but empty** masters list
+/// (a `SlideListWithText` container with no children).
+fn empty_list_document() -> Vec<u8> {
+    let mut doc: Vec<u8> = Vec::new();
+    let mut slwt: Vec<u8> = Vec::new();
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_SLIDE_PERSIST_ATOM,
+        &slide_persist_atom(1, 1),
+    );
+    rec(&mut slwt, 0, 0, REC_TEXT_HEADER_ATOM, &[0u8; 4]);
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_TEXT_CHARS_ATOM,
+        &utf16_units(CHARS_TEXT),
+    );
+    rec(
+        &mut doc,
+        REC_VER_CONTAINER,
+        0,
+        REC_SLIDE_LIST_WITH_TEXT,
+        &slwt,
+    );
+    // An empty masters list container (recVer 0xF, recLen 0).
+    rec(
+        &mut doc,
+        REC_VER_CONTAINER,
+        1,
+        REC_SLIDE_LIST_WITH_TEXT,
+        &[],
+    );
+    rec(&mut doc, 0, 0, REC_END_DOCUMENT, &[]);
+    let mut stream: Vec<u8> = Vec::new();
+    stream.extend_from_slice(&(REC_VER_CONTAINER as u16).to_le_bytes());
+    stream.extend_from_slice(&REC_DOCUMENT.to_le_bytes());
+    stream.extend_from_slice(&(doc.len() as u32).to_le_bytes());
+    stream.extend_from_slice(&doc);
+    stream
+}
+
+fn build_empty_list() -> Vec<u8> {
+    build_cfbf(&[("PowerPoint Document", empty_list_document())])
 }
 
 fn build_generic_cfbf() -> Vec<u8> {
@@ -559,6 +768,7 @@ fn capabilities_name_the_native_selectors() {
         "ppt-slide",
         "ppt-run",
         "ppt-record",
+        "ppt-list",
         "ppt-find",
     ] {
         assert!(caps.native_selectors.contains(&n), "missing {n}");
@@ -754,6 +964,203 @@ fn document_slides_runs_and_records_are_preserved() {
 }
 
 #[test]
+fn lists_are_materialized_as_typed_answers() {
+    let src = build_lists();
+    let mut fx = Fixture::new("lists", &src);
+    let field = fx.report.field;
+
+    // The common metadata reports the four modeled lists.
+    let meta = answer_json(&observe_ok(
+        &mut fx.store,
+        &field,
+        Selector::Metadata,
+        Representation::Metadata,
+    ));
+    assert!(meta.contains("\"lists\":4"), "{meta}");
+    // The slides-list projection is unchanged by the wider model.
+    assert!(meta.contains("\"slides\":2"), "{meta}");
+    assert!(meta.contains("\"runs\":2"), "{meta}");
+
+    // The slides list (recInstance 0) keeps its Phase-26.3 shape.
+    let slides = answer_json(&observe_ok(
+        &mut fx.store,
+        &field,
+        Selector::PptList { instance: 0 },
+        Representation::Metadata,
+    ));
+    assert!(slides.contains("\"list\":\"slides\""), "{slides}");
+    assert!(slides.contains("\"rec_instance\":0"), "{slides}");
+    assert!(slides.contains("\"empty\":false"), "{slides}");
+    assert!(slides.contains("\"persist_id_ref\":1"), "{slides}");
+    assert!(slides.contains("\"persist_id_ref\":2"), "{slides}");
+    let slides_text = answer_text(&observe_ok(
+        &mut fx.store,
+        &field,
+        Selector::PptList { instance: 0 },
+        Representation::Text,
+    ));
+    assert!(slides_text.contains(CHARS_TEXT), "{slides_text}");
+    assert!(slides_text.contains(BYTES_DECODED), "{slides_text}");
+
+    // The masters list.
+    let masters = answer_json(&observe_ok(
+        &mut fx.store,
+        &field,
+        Selector::PptList { instance: 1 },
+        Representation::Metadata,
+    ));
+    assert!(masters.contains("\"list\":\"masters\""), "{masters}");
+    assert!(masters.contains("\"rec_instance\":1"), "{masters}");
+    assert!(masters.contains("\"persist_id_ref\":3"), "{masters}");
+    assert_eq!(
+        answer_text(&observe_ok(
+            &mut fx.store,
+            &field,
+            Selector::PptList { instance: 1 },
+            Representation::Text,
+        )),
+        MASTER_TEXT
+    );
+
+    // The notes list: one slide, two runs in order (UTF-16LE then CP1252).
+    let notes = answer_json(&observe_ok(
+        &mut fx.store,
+        &field,
+        Selector::PptList { instance: 2 },
+        Representation::Metadata,
+    ));
+    assert!(notes.contains("\"list\":\"notes\""), "{notes}");
+    assert!(notes.contains("\"persist_id_ref\":4"), "{notes}");
+    assert!(notes.contains("\"kind\":\"chars\""), "{notes}");
+    assert!(notes.contains("\"kind\":\"bytes\""), "{notes}");
+    let chars_at = notes.find(NOTES_CHARS).expect("chars run");
+    let bytes_at = notes.find(NOTES_BYTES_DECODED).expect("bytes run");
+    assert!(chars_at < bytes_at, "notes run order: {notes}");
+    assert_eq!(
+        answer_text(&observe_ok(
+            &mut fx.store,
+            &field,
+            Selector::PptList { instance: 2 },
+            Representation::Text,
+        )),
+        format!("{NOTES_CHARS}\n{NOTES_BYTES_DECODED}")
+    );
+
+    // The handout list.
+    let handout = answer_json(&observe_ok(
+        &mut fx.store,
+        &field,
+        Selector::PptList { instance: 3 },
+        Representation::Metadata,
+    ));
+    assert!(handout.contains("\"list\":\"handout\""), "{handout}");
+    assert!(handout.contains("\"rec_instance\":3"), "{handout}");
+    assert!(handout.contains("\"persist_id_ref\":5"), "{handout}");
+
+    // An **absent** list is a typed empty answer, never an error.
+    let plain = build_valid();
+    let mut px = Fixture::new("lists-absent", &plain);
+    let pfield = px.report.field;
+    let absent = answer_json(&observe_ok(
+        &mut px.store,
+        &pfield,
+        Selector::PptList { instance: 1 },
+        Representation::Metadata,
+    ));
+    assert!(absent.contains("\"empty\":true"), "{absent}");
+    assert!(absent.contains("\"slides\":0"), "{absent}");
+    assert!(absent.contains("\"runs\":0"), "{absent}");
+    assert!(absent.contains("\"list\":\"masters\""), "{absent}");
+
+    // A **present but empty** list is also a typed empty answer.
+    let esrc = build_empty_list();
+    let mut ex = Fixture::new("lists-present-empty", &esrc);
+    let efield = ex.report.field;
+    let present_empty = answer_json(&observe_ok(
+        &mut ex.store,
+        &efield,
+        Selector::PptList { instance: 1 },
+        Representation::Metadata,
+    ));
+    assert!(present_empty.contains("\"empty\":true"), "{present_empty}");
+    assert!(present_empty.contains("\"slides\":0"), "{present_empty}");
+}
+
+#[test]
+fn list_runs_preserve_exact_spans_and_order() {
+    let src = build_lists();
+    let model = vole_document::adapter::ppt::parse(&src, Limits::DEFAULT).unwrap();
+
+    // All four lists are modeled, in record order.
+    let instances: Vec<u16> = model.lists.iter().map(|l| l.instance).collect();
+    assert_eq!(instances, vec![0, 1, 2, 3]);
+    // The container spans are in stream order and enclose their children.
+    for w in model.lists.windows(2) {
+        assert!(w[0].span.1 <= w[1].span.0, "list spans are ordered");
+    }
+
+    // The legacy slides projection is exactly the slides list.
+    assert_eq!(model.slides.len(), 2);
+    assert_eq!(model.runs.len(), 2);
+    assert!(model.slides.iter().all(|s| s.list_instance == 0));
+
+    // The masters list: one slide, one UTF-16LE run whose span points at the exact
+    // text-atom record (header + payload) in the source.
+    let masters = model.list(1).expect("masters list");
+    assert_eq!(masters.slides.len(), 1);
+    assert_eq!(masters.slides[0].persist_id_ref, 3);
+    let runs = masters.slide_runs(&masters.slides[0]);
+    assert_eq!(runs.len(), 1);
+    let run = &runs[0];
+    assert_eq!(run.kind, vole_document::adapter::ppt::RUN_CHARS);
+    assert_eq!(run.rec_type, REC_TEXT_CHARS_ATOM);
+    assert!(run.header_span.1 <= run.span.0, "header precedes the atom");
+    // The header span is a TextHeaderAtom record.
+    let hs = run.header_span.0 as usize;
+    assert_eq!(
+        u16::from_le_bytes([src[hs + 2], src[hs + 3]]),
+        REC_TEXT_HEADER_ATOM
+    );
+    // The atom span is the exact record (8-byte header + UTF-16LE payload).
+    let s0 = run.span.0 as usize;
+    assert_eq!(
+        u16::from_le_bytes([src[s0 + 2], src[s0 + 3]]),
+        REC_TEXT_CHARS_ATOM
+    );
+    let payload = &src[s0 + 8..run.span.1 as usize];
+    assert_eq!(payload, utf16_units(MASTER_TEXT).as_slice());
+    assert_eq!(String::from_utf16_lossy(&run.text), MASTER_TEXT);
+
+    // The notes list: two runs in order, the second a CP1252 `TextBytesAtom`.
+    let notes = model.list(2).expect("notes list");
+    let nruns = notes.slide_runs(&notes.slides[0]);
+    assert_eq!(nruns.len(), 2);
+    assert_eq!(nruns[0].kind, vole_document::adapter::ppt::RUN_CHARS);
+    assert_eq!(nruns[1].kind, vole_document::adapter::ppt::RUN_BYTES);
+    let bs = nruns[1].span.0 as usize;
+    assert_eq!(
+        u16::from_le_bytes([src[bs + 2], src[bs + 3]]),
+        REC_TEXT_BYTES_ATOM
+    );
+    assert_eq!(&src[bs + 8..nruns[1].span.1 as usize], NOTES_BYTES);
+    assert_eq!(
+        String::from_utf16_lossy(&nruns[1].text),
+        NOTES_BYTES_DECODED
+    );
+    // Run spans strictly increase within the list.
+    assert!(nruns[0].span.1 <= nruns[1].span.0);
+
+    // The handout list.
+    let handout = model.list(3).expect("handout list");
+    assert_eq!(handout.slides.len(), 1);
+    assert_eq!(handout.slides[0].persist_id_ref, 5);
+    assert_eq!(
+        String::from_utf16_lossy(&handout.slide_runs(&handout.slides[0])[0].text),
+        HANDOUT_TEXT
+    );
+}
+
+#[test]
 fn model_encoding_round_trips() {
     let src = build_valid();
     let model = vole_document::adapter::ppt::parse(&src, Limits::DEFAULT).unwrap();
@@ -802,6 +1209,13 @@ fn malformed_inputs_decline_typed() {
                 ..Opts::default()
             },
             "bad-current-user",
+        ),
+        (
+            Opts {
+                bad_aux_list: true,
+                ..Opts::default()
+            },
+            "bad-aux-list",
         ),
     ] {
         let src = build_ppt(&kind);
