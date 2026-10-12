@@ -323,10 +323,18 @@ vole-document pdf-inspect INPUT
 vole-document pdf-make-samples DIR
 vole-document pdf-make-large DIR [OBJECTS]
 vole-document deflate-stats INPUT...        # only with deflate-replay
+vole-document arrow-fused --store DIR --field HEX --column SPEC --gt N \
+    [--evidence-cap K] [--warmup W] [--repeat R] [--also-current]
 ```
 
 These generate deterministic corpora and diagnostics for the courts; `pdf-make-large`
 assembles a valid classic-xref PDF of `OBJECTS` distinct zlib streams (≥32 MiB).
+`arrow-fused` is the **Phase-28.5 decision instrument** (not a shipped default
+mechanism): it runs the bounded native single-column predicate/aggregate kernel
+and reports per-iteration microseconds as JSON, and `--also-current` interleaves
+the shipped in-process `observe` path in the same process for the paired ablation.
+A column whose type the kernel does not model (utf8/binary/bool/temporal/
+compressed/nested) declines typed.
 
 ## Exit codes
 

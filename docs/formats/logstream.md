@@ -15,7 +15,12 @@ match one of three **recorded dialects** — RFC 5424 syslog
 (`<PRI>VERSION … STRUCTURED-DATA [SP MSG]`), RFC 3164 (BSD) syslog
 (`<PRI>Mmm dd hh:mm:ss HOSTNAME TAG[pid]: MSG`), or a generic application log
 line (an optional leading timestamp and/or level token followed by the message).
-Precedence is explicit: logstream is tried **after** every structured/tabular/
+The generic grammar's optional timestamp admits a slash dialect
+(`YY/MM/DD HH:MM:SS`, Spark) and a bracketed dialect (`[MM.DD HH:MM:SS]`,
+Proxifier), and a **BSD-without-`<PRI>`** dialect admits
+`Mmm dd hh:mm:ss host tag…: msg` (macOS), where the lenient tag region may embed
+spaces and `([pid])`; these were added in **Phase 28.1**, which converted two
+stratified-v2 `opaque` findings and one recorded decline. Precedence is explicit: logstream is tried **after** every structured/tabular/
 prose format (so a JSON/JSONL/YAML/TOML/CSV/config/Markdown/reST/AsciiDoc
 document is never stolen) and **before** the maximally ambiguous fixed-width
 heuristic (which could otherwise read a column-aligned log stream as a
@@ -23,8 +28,14 @@ column-position table).
 
 **What it cannot distinguish.** A prose file whose **every** line begins with a
 level word is indistinguishable from a log and **is claimed** (recorded); a
-single log-looking line inside prose is not claimed; and a pure BSD stream whose
-every message lacks a `: ` is a YAML mapping sequence and **stays `yaml`**. A
+single log-looking line inside prose is not claimed; a space-separated event
+record with **no timestamp and no level** (e.g. the HPC sample
+`134681 node-246 unix.hw state_change.unavailable …`) is not a log-stream line
+grammar and stays `Opaque`; and a pure BSD stream whose every message lacks a
+`: ` is a YAML mapping sequence and **stays `yaml`**. Precedence costs remain
+recorded in the stratified v2 population: an OpenStack log is claimed by the
+**config** detector (`KEY: value` shape) and a Windows log by the **CSV**
+detector before logstream runs (neither load-bearing detector is reordered). A
 JSON value stays `Json` and a JSONL stream stays `Jsonl` (both tried first); a
 single-JSON control declines logstream, and a JSONL control declines it typed.
 
@@ -88,8 +99,11 @@ wins on both lanes.
 ## Honest negatives
 
 * **Boundary (recorded):** a prose file whose **every** line begins with a level
-  word **is claimed** as a log; a single log-looking line inside prose is not; and
-  a pure BSD stream whose every message lacks a `: ` **stays `yaml`**.
+  word **is claimed** as a log; a single log-looking line inside prose is not; a
+  no-timestamp/no-level record stays `Opaque`; a pure BSD stream whose every
+  message lacks a `: ` **stays `yaml`**; and a `KEY: value`-shaped OpenStack log
+  is claimed by **config** while a field-count-uniform Windows log is claimed by
+  **CSV** before logstream runs (precedence, not a defect).
 * **Storage-vs-`conv` is a recorded loss** (the conventional lane stores far
   less because it drops spans and spelling).
 * Only exact closure (Q6) is a byte-authority claim; the **conventional load is
@@ -113,4 +127,7 @@ wins on both lanes.
   [2026-10-10-phase21-28-1-logstream-bd187003](../../evidence/campaigns/2026-10-10-phase21-28-1-logstream-bd187003/).
 - Phase 21.28 log-stream economic court (exactness 10/10):
   [2026-10-11-phase21-28-logstream-econ-372a86e0](../../evidence/campaigns/2026-10-11-phase21-28-logstream-econ-372a86e0/).
+- Stratified real-world population v2, Phase 28.1 widening (308/308 byte-exact;
+  findings 21 → 15):
+  [2026-10-12-realformats-stratified-v2-941e3d0f](../../evidence/campaigns/2026-10-12-realformats-stratified-v2-941e3d0f/).
 - Results: [phase-21-plan.md](../phases/phase-21-plan.md).

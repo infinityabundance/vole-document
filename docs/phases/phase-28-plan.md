@@ -1,6 +1,7 @@
 # Phase 28 — Execution, physical selectivity, and revision reuse
 
-> **Status:** planned (frozen contract below). Branch `phase28`.
+> **Status:** shipped (frozen contract below). Branch `phase28`. Results:
+> [phase-28-results.md](phase-28-results.md).
 > Phase 27 closed the Phase-26 limitations and left **21 recorded detection
 > findings**, the legacy-subset boundaries, and the Arrow legacy-framing decline.
 > Phase 28 is the **performance programme**: it first finishes detection, then
@@ -8,6 +9,15 @@
 > that decide whether the larger architectural direction is justified — before any
 > expensive rewrite. Same rule as every subphase: exactness is the invariant,
 > negatives are recorded, no claim without evidence.
+>
+> **Shipped:** 28.1 (detection completion, findings **21 → 15**) and 28.2
+> (competitor envelope: real Arrow for DuckDB, in-process steady-state, cold
+> split). **28.3 recorded NEGATIVE** — the `serve_source_range` clone is below the
+> MDE — so **28.4 ships nothing**. The three decision gates resolved: 28.5
+> fused kernel **RESOLVED POSITIVE**, 28.6 fragment locality **coarse structural
+> index justified**, 28.7 revision reuse **positive but marginal/scoped**.
+> **28.8+ (the winning mechanisms)** is the next programme, whose order these
+> three gates now set.
 
 ## The problem the evidence names
 
