@@ -23,6 +23,11 @@ pub mod edit;
 pub mod explain;
 pub mod external;
 pub mod index;
+/// Phase 29.3: the revision-aware incremental observation mechanism (a bounded,
+/// versioned cross-revision reuse layer over derived observations with explicit
+/// physical **and** semantic dependency edges). Observe-only; never in the
+/// exactness path.
+pub mod incremental;
 /// Phase 16.1: the single shipped DEFLATE inflate seam (`zlib-rs`). One backend
 /// serves both PDF zlib (RFC 1950) and ZIP raw DEFLATE (RFC 1951) members.
 pub(crate) mod inflate;

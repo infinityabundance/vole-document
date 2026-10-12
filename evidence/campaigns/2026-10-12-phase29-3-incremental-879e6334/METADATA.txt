@@ -1,0 +1,23 @@
+# Phase 29.3 receipt metadata
+generated_utc: 2026-10-12T19:11:09Z
+git_commit: 879e6334fa659410273375fd6542d3557543769a
+git_branch: phase29
+git_dirty: yes
+root: /work
+rustc: rustc 1.99.0 (b940084d7 2026-09-28)
+cargo: cargo 1.99.0 (5f94df478 2026-08-27)
+perl: This is perl 5, version 36, subversion 0 (v5.36.0) built for x86_64-linux-gnu-thread-multi
+arch: x86_64
+nproc: 16
+cargo_lock_sha256: a388fccdc121a30d1e72a213a7248f7b3da8cac14c8ce6a78b569fba8b91ab36
+binary: target/debug/vole-document
+binary_sha256: 0f06964e9e312dde7f19ef9ecd64d95587a77b054d49946c59ccdd01abc7e02f
+build_args: cargo build --locked --all-features -j 1
+build_env: CARGO_PROFILE_DEV_DEBUG=unset (symbols-only; debug info does not affect semantics)
+service: dev (mem_limit == memswap_limit == 8g, pids_limit 4096)
+substrate: field-build --profile runtime --packed
+index_format: VOLEINC1 (versioned; 20 B header + 128 B/entry)
+index_entry_model: key id 32 B + physical sig 32 B + semantic sig 32 B + output id 32 B
+hash: BLAKE3-256 for observation/fragment/output ids (the store's own hash)
+identity_separation (ADR-0060): exact revision SHA-256, physical fragment id, semantic context id, and derived-observation output id stay DISTINCT
+phase28_7_historical_control: evidence/campaigns/2026-10-12-phase28-7-revision-reuse-b06a2f76

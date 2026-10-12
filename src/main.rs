@@ -195,6 +195,13 @@ const USAGE_FIELD: &str = "\
     vole-document explain --store DIR --field HEX <selector> --kind KIND [--analyze] [--entropyfs | --packed]
     vole-document preview --store DIR --field HEX --page N [--json] [--entropyfs | --packed]
     vole-document materialize --store DIR --field HEX --exact --output FILE [--entropyfs | --packed]
+    vole-document field-incremental --store DIR --field HEX [--lane full|cas|incremental]
+        [--index DIR] [--format auto|csv|json|docx|xlsx] [--verify] [--max-observations N]
+        [--entropyfs | --packed]
+        (revision-aware incremental observation: reuse revision N's verified derived
+         observations for revision N+1's field ONLY where every physical AND semantic
+         dependency is unchanged; --lane cas is a physical-only versioned CAS control;
+         emits an answering-integrity JSON receipt. Observe-only, never exactness)
     vole-document cache  --store DIR [--clear] [--entropyfs | --packed]
     vole-document field-store-stats --store DIR [--entropyfs | --packed]
     (--entropyfs needs a build with the entropyfs-store feature)
@@ -354,6 +361,8 @@ fn run(args: &[String]) -> Result<()> {
         "field-edit" => cmd_field_edit(args, limits),
         #[cfg(feature = "field")]
         "field-external" => cmd_field_external(args),
+        #[cfg(feature = "field")]
+        "field-incremental" => cmd_field_incremental(args, limits),
         #[cfg(feature = "field")]
         "observe" => cmd_field_observe(args, limits),
         #[cfg(feature = "field")]
@@ -7026,6 +7035,104 @@ fn cmd_field_materialize(args: &[String], limits: Limits) -> Result<()> {
         integrity::to_hex(&integrity::sha256(&bytes))
     );
     Ok(())
+}
+
+/// Revision-aware incremental observation (Phase 29.3). Reuses revision N's
+/// verified derived observations for this field's revision only where every
+/// physical AND semantic dependency is unchanged; observe-only, never exactness.
+#[cfg(feature = "field")]
+fn cmd_field_incremental(args: &[String], limits: Limits) -> Result<()> {
+    use vole_document::field::incremental::{DEFAULT_MAX_OBSERVATIONS, Lane, incremental_observe};
+    let mut store_dir: Option<PathBuf> = None;
+    let mut field_hex: Option<String> = None;
+    let mut lane = Lane::Incremental;
+    let mut index_dir: Option<PathBuf> = None;
+    let mut format = String::from("auto");
+    let mut verify = false;
+    let mut max_obs = DEFAULT_MAX_OBSERVATIONS;
+    let mut entropyfs = false;
+    let mut packed = false;
+    let mut sync_policy = vole_document::store::SyncPolicy::Batch;
+    let mut i = 2;
+    while i < args.len() {
+        let a = args[i].as_str();
+        let (flag, inline) = match a.split_once('=') {
+            Some((f, v)) => (f, Some(v)),
+            None => (a, None),
+        };
+        match flag {
+            "--store" => store_dir = Some(PathBuf::from(take_val(args, &mut i, inline, flag)?)),
+            "--field" => field_hex = Some(take_val(args, &mut i, inline, flag)?),
+            "--index" => index_dir = Some(PathBuf::from(take_val(args, &mut i, inline, flag)?)),
+            "--format" => format = take_val(args, &mut i, inline, flag)?,
+            "--lane" => lane = Lane::parse(&take_val(args, &mut i, inline, flag)?)?,
+            "--max-observations" => {
+                max_obs = take_val(args, &mut i, inline, flag)?
+                    .parse()
+                    .map_err(|_| Error::usage("--max-observations is not a u64"))?;
+            }
+            "--sync" => {
+                sync_policy = match take_val(args, &mut i, inline, flag)?.as_str() {
+                    "batch" => vole_document::store::SyncPolicy::Batch,
+                    "each" => vole_document::store::SyncPolicy::Each,
+                    other => {
+                        return Err(Error::usage(format!(
+                            "--sync {other:?}: expected batch|each"
+                        )));
+                    }
+                };
+            }
+            "--verify" => {
+                verify = true;
+                i += 1;
+            }
+            "--packed" => {
+                packed = true;
+                i += 1;
+            }
+            "--entropyfs" => {
+                entropyfs = true;
+                i += 1;
+            }
+            other => {
+                return Err(Error::usage(format!(
+                    "field-incremental: unknown flag {other:?}"
+                )));
+            }
+        }
+    }
+    let store_dir =
+        store_dir.ok_or_else(|| Error::usage("field-incremental requires --store DIR"))?;
+    let field_hex =
+        field_hex.ok_or_else(|| Error::usage("field-incremental requires --field HEX"))?;
+    let store = open_field_store(&store_dir, entropyfs, packed, sync_policy)?;
+    let id = FieldId::from_hex(&field_hex)?;
+    let field = Field::open(&store, &id, limits)?;
+    let source = field.materialize_exact(limits)?;
+    let idx_dir = index_dir.unwrap_or_else(|| store_dir.join("incremental"));
+    let report = incremental_observe(&source, &idx_dir, lane, verify, max_obs, &format, limits)?;
+    println!("{}", report.to_json());
+    Ok(())
+}
+
+/// Fetch a flag's value: inline (`--flag=v`) or the next argument.
+#[cfg(feature = "field")]
+fn take_val(args: &[String], i: &mut usize, inline: Option<&str>, flag: &str) -> Result<String> {
+    match inline {
+        Some(v) => {
+            *i += 1;
+            Ok(v.to_string())
+        }
+        None => {
+            *i += 1;
+            let v = args
+                .get(*i)
+                .cloned()
+                .ok_or_else(|| Error::usage(format!("{flag} requires a value")))?;
+            *i += 1;
+            Ok(v)
+        }
+    }
 }
 
 /// Write `bytes` to `path` atomically: temp sibling, fsync, rename, fsync dir.
