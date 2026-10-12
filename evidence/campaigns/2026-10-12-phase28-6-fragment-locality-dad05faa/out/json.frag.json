@@ -1,0 +1,53 @@
+{
+ "answer_bytes_read": 16778341,
+ "answer_source_span": [
+  1414427,
+  1414499
+ ],
+ "detail": {},
+ "entry_bytes": 48,
+ "fmt": "json",
+ "required_bytes": 72,
+ "required_n_ranges": 1,
+ "required_ranges": [
+  [
+   1414427,
+   1414499
+  ]
+ ],
+ "schemes": {
+  "fixed_16384": {
+   "directory_bytes": 49200,
+   "floor_bytes": 16384,
+   "hit_fragments": 1,
+   "n_fragments": 1025
+  },
+  "fixed_262144": {
+   "directory_bytes": 3120,
+   "floor_bytes": 262144,
+   "hit_fragments": 1,
+   "n_fragments": 65
+  },
+  "fixed_4096": {
+   "directory_bytes": 196656,
+   "floor_bytes": 4096,
+   "hit_fragments": 1,
+   "n_fragments": 4097
+  },
+  "fixed_65536": {
+   "directory_bytes": 12336,
+   "floor_bytes": 65536,
+   "hit_fragments": 1,
+   "n_fragments": 257
+  },
+  "native": {
+   "directory_bytes": 528,
+   "floor_bytes": 16777228,
+   "hit_fragments": 1,
+   "n_fragments": 11,
+   "unit_count": 21
+  }
+ },
+ "source": "evidence/scratch/phase28-6-court/corpus/large.json",
+ "source_bytes": 16777304
+}

@@ -1,0 +1,6 @@
+fmt	path	bytes	sha256
+pdf	evidence/scratch/phase28-6-court/corpus/real.pdf	36404840	d3bd12c2db70c99e7b2ac6340073915818ee8102e64e75d4129736fbb83ccc92
+docx	evidence/scratch/phase28-6-court/corpus/real.docx	2286200	47885ad3f525df8ed56c18d9cce06c510babbc5440dcf823a9a13d08017151f4
+json	evidence/scratch/phase28-6-court/corpus/large.json	16777304	930d4ff533c1171c1e28b7b9f15823d915d058821dc7ab29a5607d7f18f19493
+csv	evidence/scratch/phase28-6-court/corpus/large.csv	16777245	774cd1508e49330b63a98a9cccb0c30b6d6697b03049d8c19427fe2586af1946
+parquet	evidence/scratch/phase28-6-court/corpus/large.parquet	16779953	133d70e970692b8f5bc9484ff7a8a7b820ca969da9abcd5cb6d59847c84d266c

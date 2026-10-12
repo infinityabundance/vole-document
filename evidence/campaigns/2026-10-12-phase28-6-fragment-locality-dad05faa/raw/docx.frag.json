@@ -1,0 +1,65 @@
+{
+ "answer_bytes_read": 2309293,
+ "answer_source_span": [
+  1949,
+  14067
+ ],
+ "detail": {
+  "member": "word/document.xml",
+  "member_span": [
+   1902,
+   14067
+  ],
+  "part_compressed": 12118,
+  "part_uncompressed": 71884
+ },
+ "entry_bytes": 48,
+ "fmt": "docx",
+ "required_bytes": 15192,
+ "required_n_ranges": 2,
+ "required_ranges": [
+  [
+   1902,
+   14067
+  ],
+  [
+   2283173,
+   2286200
+  ]
+ ],
+ "schemes": {
+  "fixed_16384": {
+   "directory_bytes": 6720,
+   "floor_bytes": 25208,
+   "hit_fragments": 2,
+   "n_fragments": 140
+  },
+  "fixed_262144": {
+   "directory_bytes": 432,
+   "floor_bytes": 451192,
+   "hit_fragments": 2,
+   "n_fragments": 9
+  },
+  "fixed_4096": {
+   "directory_bytes": 26832,
+   "floor_bytes": 21112,
+   "hit_fragments": 6,
+   "n_fragments": 559
+  },
+  "fixed_65536": {
+   "directory_bytes": 1680,
+   "floor_bytes": 123512,
+   "hit_fragments": 2,
+   "n_fragments": 35
+  },
+  "native": {
+   "directory_bytes": 2208,
+   "floor_bytes": 15192,
+   "hit_fragments": 2,
+   "n_fragments": 46,
+   "unit_count": 45
+  }
+ },
+ "source": "evidence/scratch/phase28-6-court/corpus/real.docx",
+ "source_bytes": 2286200
+}

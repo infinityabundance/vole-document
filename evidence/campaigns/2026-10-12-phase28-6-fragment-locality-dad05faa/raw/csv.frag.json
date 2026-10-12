@@ -1,0 +1,97 @@
+{
+ "answer_bytes_read": 16778079,
+ "answer_source_span": [
+  0,
+  16777245
+ ],
+ "detail": {},
+ "entry_bytes": 48,
+ "fmt": "csv",
+ "required_bytes": 54,
+ "required_n_ranges": 12,
+ "required_ranges": [
+  [
+   199,
+   200
+  ],
+  [
+   201,
+   207
+  ],
+  [
+   208,
+   211
+  ],
+  [
+   212,
+   218
+  ],
+  [
+   219,
+   221
+  ],
+  [
+   222,
+   229
+  ],
+  [
+   230,
+   233
+  ],
+  [
+   234,
+   241
+  ],
+  [
+   242,
+   244
+  ],
+  [
+   245,
+   252
+  ],
+  [
+   253,
+   256
+  ],
+  [
+   257,
+   264
+  ]
+ ],
+ "schemes": {
+  "fixed_16384": {
+   "directory_bytes": 49200,
+   "floor_bytes": 16384,
+   "hit_fragments": 1,
+   "n_fragments": 1025
+  },
+  "fixed_262144": {
+   "directory_bytes": 3120,
+   "floor_bytes": 262144,
+   "hit_fragments": 1,
+   "n_fragments": 65
+  },
+  "fixed_4096": {
+   "directory_bytes": 196656,
+   "floor_bytes": 4096,
+   "hit_fragments": 1,
+   "n_fragments": 4097
+  },
+  "fixed_65536": {
+   "directory_bytes": 12336,
+   "floor_bytes": 65536,
+   "hit_fragments": 1,
+   "n_fragments": 257
+  },
+  "native": {
+   "directory_bytes": 23539920,
+   "floor_bytes": 66,
+   "hit_fragments": 3,
+   "n_fragments": 490415,
+   "unit_count": 490415
+  }
+ },
+ "source": "evidence/scratch/phase28-6-court/corpus/large.csv",
+ "source_bytes": 16777245
+}
