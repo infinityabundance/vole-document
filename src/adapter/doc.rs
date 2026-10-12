@@ -788,7 +788,12 @@ pub fn detect(source: &[u8], limits: Limits) -> bool {
     let Some(wd_entry) = find_named(&model, STREAM_WORD_DOCUMENT) else {
         return false;
     };
-    let Ok(wd) = crate::adapter::cfbf::stream_bytes(source, wd_entry) else {
+    // Read only the FIB prefix: a genuine `.doc` whose `WordDocument` chain is
+    // **fragmented** (a non-contiguous sector chain) is still a `.doc`, and its
+    // FIB lives in the stream's first chunk. Detection therefore reads the header
+    // prefix rather than requiring the whole stream to be one contiguous span.
+    let Ok(wd) = crate::adapter::cfbf::stream_leading(source, &model, wd_entry, FIB_BASE_LEN)
+    else {
         return false;
     };
     if wd.len() < FIB_BASE_LEN {

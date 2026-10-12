@@ -709,7 +709,11 @@ pub fn detect(source: &[u8], limits: Limits) -> bool {
     let Some(entry) = find_named(&model, STREAM_POWERPOINT_DOCUMENT) else {
         return false;
     };
-    let Ok(stream) = crate::adapter::cfbf::stream_bytes(source, entry) else {
+    // Read only the leading record header: a genuine `.ppt` whose `PowerPoint
+    // Document` chain is **fragmented** is still a `.ppt`, and its first record
+    // lives in the stream's first chunk. Detection therefore reads the prefix
+    // rather than requiring the whole stream to be one contiguous span.
+    let Ok(stream) = crate::adapter::cfbf::stream_leading(source, &model, entry, 8) else {
         return false;
     };
     if stream.len() < 8 {

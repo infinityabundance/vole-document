@@ -438,6 +438,63 @@ pub fn stream_bytes<'a>(source: &'a [u8], e: &CfbfEntry) -> Result<&'a [u8]> {
     )
 }
 
+/// The leading `n` bytes of a stream, read from the source by locating the
+/// stream's **first allocated chunk** (a regular sector, or a mini-sector inside
+/// the root mini stream) rather than requiring the whole chain to be one span.
+///
+/// `stream_bytes` declines a **fragmented** chain because its content is not a
+/// single exact span; a bounded detector, however, only needs the stream header
+/// (a FIB/`BOF`/record prefix), which always lies in the first chunk. This reads
+/// that prefix when the first chunk's absolute offset is recoverable from the
+/// model: directly from `start_sector` for a regular stream, or through the root
+/// mini stream when that stream is itself one contiguous span. A fragmented
+/// **mini stream** is declined (its first chunk is not addressable).
+///
+/// `n` must not exceed the smaller chunk size ([`CfbfModel::mini_sector_size`],
+/// 64); callers ask only for a fixed 8–32-byte prefix.
+pub fn stream_leading<'a>(
+    source: &'a [u8],
+    model: &CfbfModel,
+    e: &CfbfEntry,
+    n: usize,
+) -> Result<&'a [u8]> {
+    if e.obj_type != OBJ_STREAM && e.obj_type != OBJ_ROOT {
+        return Err(Error::unsupported_feature(
+            "a storage object has no stream bytes",
+        ));
+    }
+    if n == 0 || e.stream_size == 0 {
+        return Ok(&source[0..0]);
+    }
+    if n as u64 > u64::from(model.mini_sector_size) {
+        return Err(Error::resource_limit(
+            "a leading read must fit in one stream chunk",
+        ));
+    }
+    let ss = model.sector_size as u64;
+    let mini = e.obj_type != OBJ_ROOT && e.stream_size < u64::from(model.mini_cutoff);
+    let first = if mini {
+        let root = model
+            .entries
+            .first()
+            .ok_or_else(|| corrupt("model has no root entry"))?;
+        if !root.contiguous {
+            return Err(Error::unsupported_feature(
+                "a fragmented mini stream is not representable as a single exact span",
+            ));
+        }
+        root.data_span
+            .0
+            .saturating_add(e.start_sector as u64 * u64::from(model.mini_sector_size))
+    } else {
+        (e.start_sector as u64 + 1) * ss
+    };
+    let end = first
+        .checked_add(n as u64)
+        .ok_or_else(|| corrupt("leading span overflows"))?;
+    slice(source, first, end, "leading span is outside the source")
+}
+
 /// The canonical `/`-joined path of an entry (built from the reconstructed tree).
 pub fn entry_path(model: &CfbfModel, index: u32) -> String {
     let Some(e) = model.entry(index) else {
