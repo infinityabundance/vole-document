@@ -1,0 +1,23 @@
+# Phase 28.7 receipt metadata
+generated_utc: 2026-10-12T14:56:40Z
+git_commit: b06a2f762f1f7e4c83723c6b5bbd75c083d1b712
+git_branch: phase28
+git_dirty: yes
+root: /work
+rustc: rustc 1.99.0 (b940084d7 2026-09-28)
+cargo: cargo 1.99.0 (5f94df478 2026-08-27)
+python3: Python 3.11.2
+arch: x86_64
+nproc: 16
+cargo_lock_sha256: 141a41a92897a7d21968cd6e0fe0ddba4161e14687f15c75b52fb413515ab52d
+binary: target/release/vole-document
+binary_sha256: ab9d38f3dac0e2e222ca2677ffac6774226a0cf83636ea1eabd3f45e142b4a2a
+build_args: cargo build --release --locked --all-features -j 1
+service: doc-baseline (mem_limit == memswap_limit == 6g, pids_limit 4096, cpus 8)
+substrate: field-build --profile runtime --packed
+content_id: BLAKE2b-256 (stdlib stand-in for the store's BLAKE3)
+chunking: content-defined (gear hash, min 2048 / avg 8192 / max 32768); containers use member-aligned structural fragments
+index_model: chunk entry 48 B; dependency edge 16 B; semantic ctx entry 48 B; obs identity node (optional) 48 B
+identity_separation (ADR-0060): exact revision SHA-256, physical fragment content id, semantic context signature, and derived-observation content id are DISTINCT namespaces; no reuse weakens a node's dependency on its DocumentExact root
+phase15_6_context: the existing content-addressed descriptor store retained ~0 cross-revision work (phase15-revision-court); with 97.2% of persistent bytes being the whole descriptor (phase 22.6), a change invalidates it wholesale -- fragmenting the authority is what localizes a revision
+notes: measurement only; no wire format, no planner change, no decoder change.

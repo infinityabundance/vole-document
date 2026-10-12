@@ -1,0 +1,13 @@
+{
+ "arch": "x86_64",
+ "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+ "cargo_lock_sha256": "141a41a92897a7d21968cd6e0fe0ddba4161e14687f15c75b52fb413515ab52d",
+ "git_branch": "phase28",
+ "git_commit": "b06a2f762f1f7e4c83723c6b5bbd75c083d1b712",
+ "git_dirty": true,
+ "profile": "release",
+ "python3": "Python 3.11.2",
+ "root": "/work",
+ "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+ "service": "doc-baseline"
+}
