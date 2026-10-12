@@ -59,7 +59,11 @@ use crate::error::{Error, Result};
 use crate::limits::Limits;
 
 /// Wire version of the canonical derived model.
-pub const MODEL_VERSION: u8 = 1;
+///
+/// Version 2 added the root mini stream's FAT chain (`mini_chain`) so a mini
+/// sector's absolute position is addressable even when the mini stream is itself
+/// fragmented (a non-contiguous regular sector chain).
+pub const MODEL_VERSION: u8 = 2;
 /// Hard cap on decoded model entries (defends the decoder against a hostile blob).
 pub const MAX_MODEL_ENTRIES: u32 = 1 << 24;
 /// Hard cap on a decoded name length (defends the decoder).
@@ -205,6 +209,11 @@ pub struct CfbfModel {
     pub first_minifat_sector: u32,
     /// The first DIFAT sector (or [`ENDOFCHAIN`]).
     pub first_difat_sector: u32,
+    /// The root mini stream's FAT sector chain (regular sector indices, in chain
+    /// order). The mini stream's byte range `k*mini_sector_size ..` lives inside
+    /// chain element `k*mini_sector_size / sector_size`, so a mini sector can be
+    /// mapped to an absolute offset even when the mini stream is fragmented.
+    pub mini_chain: Vec<u32>,
     /// The ordered directory-entry list (directory index order).
     pub entries: Vec<CfbfEntry>,
 }
@@ -244,6 +253,10 @@ impl CfbfModel {
         out.extend_from_slice(&self.first_dir_sector.to_le_bytes());
         out.extend_from_slice(&self.first_minifat_sector.to_le_bytes());
         out.extend_from_slice(&self.first_difat_sector.to_le_bytes());
+        out.extend_from_slice(&(self.mini_chain.len() as u32).to_le_bytes());
+        for &s in &self.mini_chain {
+            out.extend_from_slice(&s.to_le_bytes());
+        }
         out.extend_from_slice(&(self.entries.len() as u32).to_le_bytes());
         for e in &self.entries {
             out.extend_from_slice(&(e.name.len() as u32).to_le_bytes());
@@ -304,6 +317,18 @@ impl CfbfModel {
         }
         if !matches!(sector_size, 512 | 4096) || mini_sector_size != 64 {
             return Err(corrupt("sector sizes are implausible"));
+        }
+        let mini_chain_len = r.u32()?;
+        if mini_chain_len > MAX_MODEL_ENTRIES {
+            return Err(corrupt("model mini-chain length is implausible"));
+        }
+        let mut mini_chain = Vec::with_capacity(mini_chain_len as usize);
+        for _ in 0..mini_chain_len {
+            let s = r.u32()?;
+            if s > MAXREGSECT {
+                return Err(corrupt("model mini-chain sector is out of range"));
+            }
+            mini_chain.push(s);
         }
         let count = r.u32()?;
         if count > MAX_MODEL_ENTRIES {
@@ -380,6 +405,7 @@ impl CfbfModel {
             first_dir_sector,
             first_minifat_sector,
             first_difat_sector,
+            mini_chain,
             entries,
         })
     }
@@ -446,9 +472,11 @@ pub fn stream_bytes<'a>(source: &'a [u8], e: &CfbfEntry) -> Result<&'a [u8]> {
 /// single exact span; a bounded detector, however, only needs the stream header
 /// (a FIB/`BOF`/record prefix), which always lies in the first chunk. This reads
 /// that prefix when the first chunk's absolute offset is recoverable from the
-/// model: directly from `start_sector` for a regular stream, or through the root
-/// mini stream when that stream is itself one contiguous span. A fragmented
-/// **mini stream** is declined (its first chunk is not addressable).
+/// model: directly from `start_sector` for a regular stream, or by mapping the
+/// mini sector through the **root mini stream's FAT chain**
+/// ([`CfbfModel::mini_chain`]) when the stream is MiniFAT-chained. Mapping through
+/// the chain (rather than assuming the mini stream is one contiguous span) makes
+/// the read work even when the mini stream is itself fragmented.
 ///
 /// `n` must not exceed the smaller chunk size ([`CfbfModel::mini_sector_size`],
 /// 64); callers ask only for a fixed 8–32-byte prefix.
@@ -478,14 +506,19 @@ pub fn stream_leading<'a>(
             .entries
             .first()
             .ok_or_else(|| corrupt("model has no root entry"))?;
-        if !root.contiguous {
+        let logical = e.start_sector as u64 * u64::from(model.mini_sector_size);
+        // Map the mini sector's offset through the root mini stream's FAT chain.
+        // A fragmented mini stream is not one contiguous span, so `data_span.0 +
+        // logical` is only correct for a contiguous chain (the fallback below).
+        if let Some(&sect) = model.mini_chain.get((logical / ss) as usize) {
+            sector_off(sect, model.sector_size) + logical % ss
+        } else if root.contiguous {
+            root.data_span.0.saturating_add(logical)
+        } else {
             return Err(Error::unsupported_feature(
-                "a fragmented mini stream is not representable as a single exact span",
+                "a fragmented mini stream's first chunk is not addressable",
             ));
         }
-        root.data_span
-            .0
-            .saturating_add(e.start_sector as u64 * u64::from(model.mini_sector_size))
     } else {
         (e.start_sector as u64 + 1) * ss
     };
@@ -1086,6 +1119,7 @@ pub fn parse(source: &[u8], limits: Limits) -> Result<CfbfModel> {
         first_dir_sector: h.first_dir_sector,
         first_minifat_sector: h.first_minifat_sector,
         first_difat_sector: h.first_difat_sector,
+        mini_chain,
         entries,
     })
 }
