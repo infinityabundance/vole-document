@@ -1,0 +1,267 @@
+{
+ "agreement": {
+  "comparisons": 228,
+  "disagreements": 0,
+  "ok": true
+ },
+ "campaign": "evidence/campaigns/2026-10-12-phase29-1-fused-2ec78328",
+ "clusters": 114,
+ "cold": {
+  "overall_ns": {
+   "duckdb": 82742131.5,
+   "fused": 913048.5,
+   "pyarrow": 66353470.5
+  },
+  "ratios": {
+   "duckdb": {
+    "cells": 114,
+    "geomean": 0.02026448210526073,
+    "median": 0.011611226195706245
+   },
+   "pyarrow": {
+    "cells": 114,
+    "geomean": 0.028417440736842152,
+    "median": 0.01382843238847384
+   }
+  }
+ },
+ "court_status": "PASS",
+ "declines": {},
+ "env": {
+  "arch": "x86_64",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "96d9963eaa407444d97db29365469bc5fdf9d125f5e4b6d59f83b556ae2e0c5b",
+  "build_args": "--release --locked --all-features",
+  "campaign": "evidence/campaigns/2026-10-12-phase29-1-fused-2ec78328",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "c9e522887f7fc7ce2e955a81eba93c39d4ebf973cafa912e6c4822574d0b535a",
+  "duckdb_version": "1.5.6",
+  "env_affecting_semantics": {
+   "LC_ALL": "C"
+  },
+  "headline_metric": "in-process steady-state median",
+  "iters": 9,
+  "lanes": [
+   "fused",
+   "current",
+   "pyarrow",
+   "duckdb"
+  ],
+  "measured_commit": "2ec7832895bd232d94f62546581eec8dba3c2f59",
+  "phase": "29.1 \u2014 generalized fused kernel (Arrow/Parquet/CSV) decision Experiment 2",
+  "profile": "release",
+  "pyarrow_version": "25.0.1",
+  "python": "Python 3.11.2",
+  "reps": 5,
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "service": "analytical",
+  "tree_state": " M src/adapter/arrow.rs  M src/adapter/csv.rs  M src/adapter/fused.rs  M src/adapter/parquet.rs  M tools/phase29-1-fused-econ-court.sh ?? evidence/campaigns/2026-10-12-phase29-1-fused-2ec78328/ ?? evidence/campaigns/2026-10-12-phase30-1-kernels-2ec78328/ ?? tools/phase30-1-kernels-court.sh ",
+  "utc": "2026-10-12T22:55:45Z",
+  "vole_substrate": "--profile runtime --packed",
+  "warmup": 3
+ },
+ "estimator": {
+  "current": {
+   "geomean": 0.013253541390605632,
+   "geomean_ci": [
+    0.007120562867502476,
+    0.02211243746267637
+   ],
+   "losses": 0,
+   "mde": 0.013325596169975012,
+   "median": 0.02287435985095912,
+   "median_ci": [
+    0.008382117455029715,
+    0.027027053470830384
+   ],
+   "n_clusters": 14,
+   "n_samples": 70,
+   "ties": 0,
+   "wins": 70
+  },
+  "duckdb": {
+   "geomean": 0.004729226409806803,
+   "geomean_ci": [
+    0.0032550992818166165,
+    0.006853067031246752
+   ],
+   "losses": 0,
+   "mde": 0.005889326977136135,
+   "median": 0.0022547975753875417,
+   "median_ci": [
+    0.0010644066435105508,
+    0.009304647700210524
+   ],
+   "n_clusters": 114,
+   "n_samples": 570,
+   "ties": 0,
+   "wins": 570
+  },
+  "pyarrow": {
+   "geomean": 0.16827858117864866,
+   "geomean_ci": [
+    0.10952918953477166,
+    0.26160007490549253
+   ],
+   "losses": 81,
+   "mde": 0.06402882120811662,
+   "median": 0.04608503836251491,
+   "median_ci": [
+    0.036722587207930014,
+    0.12631056956644943
+   ],
+   "n_clusters": 114,
+   "n_samples": 570,
+   "ties": 8,
+   "wins": 489
+  }
+ },
+ "exactness": {
+  "n": 12,
+  "ok": 12
+ },
+ "large_input_gap": {
+  "arrow/id:avg": {
+   "duckdb": 0.05156645436772096,
+   "pyarrow": 0.8194697042213076
+  },
+  "arrow/id:count": {
+   "duckdb": 0.04250708037055622,
+   "pyarrow": 0.6575853794507599
+  },
+  "arrow/id:max": {
+   "duckdb": 0.05262948985698409,
+   "pyarrow": 0.766553480475382
+  },
+  "arrow/id:min": {
+   "duckdb": 0.051716214729870015,
+   "pyarrow": 0.7734612526180663
+  },
+  "arrow/id:sum": {
+   "duckdb": 0.05176753344442376,
+   "pyarrow": 0.885070538990233
+  },
+  "arrow/score:avg": {
+   "duckdb": 0.041149469255044466,
+   "pyarrow": 0.644579817246717
+  },
+  "arrow/score:count": {
+   "duckdb": 0.04274299025577583,
+   "pyarrow": 0.6533290888165144
+  },
+  "arrow/score:max": {
+   "duckdb": 0.06535762510902964,
+   "pyarrow": 0.31165798998088357
+  },
+  "arrow/score:min": {
+   "duckdb": 0.06416556230066384,
+   "pyarrow": 0.3133047210300429
+  },
+  "arrow/score:sum": {
+   "duckdb": 0.039035617061929304,
+   "pyarrow": 0.6392843831531867
+  },
+  "csv/id:avg": {
+   "duckdb": 0.14676523749816808,
+   "pyarrow": 39.1718860134931
+  },
+  "csv/id:count": {
+   "duckdb": 0.14635045960790188,
+   "pyarrow": 36.83459383753502
+  },
+  "csv/id:max": {
+   "duckdb": 0.14707350466895816,
+   "pyarrow": 40.152274837511605
+  },
+  "csv/id:min": {
+   "duckdb": 0.14686619123165046,
+   "pyarrow": 41.36554677380984
+  },
+  "csv/id:sum": {
+   "duckdb": 0.14629714801916702,
+   "pyarrow": 42.362240731667484
+  },
+  "csv/score:avg": {
+   "duckdb": 0.12424415807154851,
+   "pyarrow": 34.49762598043073
+  },
+  "csv/score:count": {
+   "duckdb": 0.1252382199309461,
+   "pyarrow": 30.452156381080393
+  },
+  "csv/score:max": {
+   "duckdb": 0.12125838061043016,
+   "pyarrow": 10.51423718417514
+  },
+  "csv/score:min": {
+   "duckdb": 0.12254525240720883,
+   "pyarrow": 10.404621531320338
+  },
+  "csv/score:sum": {
+   "duckdb": 0.12387961891084812,
+   "pyarrow": 34.8737150479977
+  },
+  "parquet/id:avg": {
+   "duckdb": 0.10117549792893744,
+   "pyarrow": 0.8453535168755145
+  },
+  "parquet/id:count": {
+   "duckdb": 0.013300289136720364,
+   "pyarrow": 0.10855614973262032
+  },
+  "parquet/id:max": {
+   "duckdb": 0.09677402332876889,
+   "pyarrow": 0.8026741946778712
+  },
+  "parquet/id:min": {
+   "duckdb": 0.1028726244073469,
+   "pyarrow": 0.8175451279849988
+  },
+  "parquet/id:sum": {
+   "duckdb": 0.10337248957938613,
+   "pyarrow": 0.9022994153196089
+  },
+  "parquet/score:avg": {
+   "duckdb": 0.072498663084167,
+   "pyarrow": 0.687635418171313
+  },
+  "parquet/score:count": {
+   "duckdb": 0.010180093139822934,
+   "pyarrow": 0.09334028782095355
+  },
+  "parquet/score:max": {
+   "duckdb": 0.11426489674172909,
+   "pyarrow": 0.37841017056508164
+  },
+  "parquet/score:min": {
+   "duckdb": 0.1022175657560632,
+   "pyarrow": 0.3290652252571572
+  },
+  "parquet/score:sum": {
+   "duckdb": 0.06153552675173944,
+   "pyarrow": 0.5869565217391305
+  }
+ },
+ "phase": "29.1 \u2014 generalized fused kernel (Arrow/Parquet/CSV) decision Experiment 2",
+ "steady_distribution_ns": {
+  "arrow": {
+   "cells": 38,
+   "p50": 391.0,
+   "p95": 488.0,
+   "p99": 528.4000000000001
+  },
+  "csv": {
+   "cells": 38,
+   "p50": 10449.0,
+   "p95": 11222.899999999998,
+   "p99": 12758.440000000002
+  },
+  "parquet": {
+   "cells": 38,
+   "p50": 450.5,
+   "p95": 521.0,
+   "p99": 531.66
+  }
+ },
+ "verdict": "PASS"
+}

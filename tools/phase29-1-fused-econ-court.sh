@@ -24,16 +24,23 @@ set -u
 cd /work
 export LC_ALL=C
 export PYTHONDONTWRITEBYTECODE=1
+# POSIX tab (dash's `sh` does not support bash's `$'\t'`).
+TAB=$(printf '\t')
 
 DRIVER=tools/fixtures/phase29-1-fused-econ.py
 SHA=$(git rev-parse --short HEAD 2>/dev/null || echo unknown)
 STAMP=$(date -u +%Y-%m-%d)
-CAMPAIGN="evidence/campaigns/${STAMP}-phase29-1-fused-${SHA}"
+# `CAMPAIGN_NAME` defaults to the Phase-29.1 name so existing callers are unchanged;
+# a follow-on phase (e.g. 30.1) seals its own receipt by overriding it.
+CAMPAIGN="evidence/campaigns/${STAMP}-${CAMPAIGN_NAME:-phase29-1-fused}-${SHA}"
 RAW="$CAMPAIGN/raw"
 WORK="evidence/scratch/phase29-1-econ"
 REPS=${REPS:-5}
 ITERS=${ITERS:-9}
 WARMUP=${WARMUP:-3}
+# Human-readable labels for the sealed receipt (defaults preserve Phase-29.1 output).
+PHASE_TITLE=${PHASE_TITLE:-"Phase 29.1 — generalized fused kernel (Arrow/Parquet/CSV)"}
+PHASE_DESC=${PHASE_DESC:-"29.1 — generalized fused kernel (Arrow/Parquet/CSV) decision Experiment 2"}
 
 PROFILE=${PROFILE:-release}
 case "$PROFILE" in
@@ -64,12 +71,19 @@ echo "=== plan ==="
 python3 - "$WORK" "$RAW" <<'PY'
 import os, sys
 work, raw = sys.argv[1], sys.argv[2]
-FIX = {
+FIX_ALL = {
     "e_small": {"num": ("id", "int", 100), "flt": ("score", "float", 0), "group": "id"},
     "e_multi": {"num": ("k", "int", 1500), "group": "k"},
     "e_large": {"num": ("id", "int", 500000), "flt": ("score", "float", 0)},
     "e_null":  {"num": ("id", "int", 3), "flt": ("score", "float", 0), "group": "id"},
 }
+# `ECON_FIXTURES` is an opt-in, backward-compatible filter so a follow-on phase
+# (e.g. 30.1) can seal a large-input-only matrix from the same court. Empty /
+# unset -> every fixture (the Phase-29.1 default is unchanged).
+_sel = os.environ.get("ECON_FIXTURES", "")
+FIX = {k: v for k, v in FIX_ALL.items() if not _sel or k in _sel.split(",")}
+if not FIX:
+    raise SystemExit("ECON_FIXTURES=%r selected no fixture" % _sel)
 FMTS = ["arrow", "parquet", "csv"]
 rows = []
 for fx, spec in FIX.items():
@@ -109,7 +123,7 @@ awk -F'\t' 'NR>1{print $1"|"$2}' "$RAW/plan.tsv" | sort -u | while IFS='|' read 
     echo "-- $fx.$fmt field=${FIELD%????????????????????????????????????????????????????????????}"
 
     awk -F'\t' -v fx="$fx" -v fmt="$fmt" 'NR>1 && $1==fx && $2==fmt {print}' "$RAW/plan.tsv" \
-    | while IFS=$'\t' read -r _fx _fmt qid col kind op gt _src; do
+    | while IFS="$TAB" read -r _fx _fmt qid col kind op gt _src; do
         for rep in $(seq 1 "$REPS"); do
             extra=""
             if [ "$op" = "count" ] && { [ "$fmt" = "arrow" ] || [ "$fmt" = "parquet" ]; }; then
@@ -163,7 +177,7 @@ PYARROW_VERSION=$(python3 -c 'import pyarrow; print(pyarrow.__version__)')
 cat > "$CAMPAIGN/environment.json" <<EOF
 {
   "campaign": "$CAMPAIGN",
-  "phase": "29.1 — generalized fused kernel (Arrow/Parquet/CSV) decision Experiment 2",
+  "phase": "$PHASE_DESC",
   "utc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "measured_commit": "$(git rev-parse HEAD 2>/dev/null || echo unknown)",
   "tree_state": "$(git status --porcelain | tr '\n' ' ' | sed 's/"/\\"/g')",
@@ -224,7 +238,7 @@ if [ "$agg_rc" -ne 0 ] || [ "$EXACT_OK" -ne "$EXACT_N" ] || [ "$EXACT_N" -eq 0 ]
 fi
 
 {
-    echo "# Phase 29.1 — generalized fused kernel (Arrow/Parquet/CSV)"
+    echo "# $PHASE_TITLE"
     echo
     echo "**Question.** Does one bounded, validity-aware fused kernel — one versioned"
     echo "logical plan (projection + equality/range predicate + accumulator), with a"

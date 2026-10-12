@@ -272,6 +272,69 @@ impl FusedAnswer {
     }
 }
 
+/// The typed-decline error for an unsigned value above the `i64` range.
+#[cold]
+fn unsigned_overflow() -> Error {
+    Error::unsupported_feature("an unsigned integer value exceeds the i64 range")
+}
+
+/// Read one little-endian fixed-width integer chunk as `i64`. Returns `None` only
+/// for an unsigned 64-bit value above `i64::MAX` (a typed decline). The width and
+/// signedness branches are resolved at monomorphization.
+#[inline(always)]
+fn read_le_int<const W: usize, const SIGNED: bool>(chunk: &[u8]) -> Option<i64> {
+    if W == 8 {
+        let mut a = [0u8; 8];
+        a.copy_from_slice(chunk);
+        if SIGNED {
+            Some(i64::from_le_bytes(a))
+        } else {
+            let u = u64::from_le_bytes(a);
+            if u > i64::MAX as u64 {
+                None
+            } else {
+                Some(u as i64)
+            }
+        }
+    } else if W == 4 {
+        let mut a = [0u8; 4];
+        a.copy_from_slice(chunk);
+        Some(if SIGNED {
+            i64::from(i32::from_le_bytes(a))
+        } else {
+            i64::from(u32::from_le_bytes(a))
+        })
+    } else if W == 2 {
+        let mut a = [0u8; 2];
+        a.copy_from_slice(chunk);
+        Some(if SIGNED {
+            i64::from(i16::from_le_bytes(a))
+        } else {
+            i64::from(u16::from_le_bytes(a))
+        })
+    } else {
+        Some(if SIGNED {
+            i64::from(chunk[0] as i8)
+        } else {
+            i64::from(chunk[0])
+        })
+    }
+}
+
+/// Read one little-endian fixed-width floating-point chunk as `f64`.
+#[inline(always)]
+fn read_le_f64<const W: usize>(chunk: &[u8]) -> f64 {
+    if W == 8 {
+        let mut a = [0u8; 8];
+        a.copy_from_slice(chunk);
+        f64::from_le_bytes(a)
+    } else {
+        let mut a = [0u8; 4];
+        a.copy_from_slice(chunk);
+        f64::from(f32::from_le_bytes(a))
+    }
+}
+
 /// A validity-aware accumulator over native chunks.
 ///
 /// `push_*` folds a chunk of native values with an optional parallel validity
@@ -370,6 +433,102 @@ impl Accumulator {
         }
     }
 
+    /// Fold a contiguous little-endian, fixed-width **integer** buffer directly.
+    ///
+    /// `data.len()` must be an exact multiple of `W` (the caller reads a bounded
+    /// slice of `rows * W` bytes). `W` is the stored byte width and `SIGNED`
+    /// selects the two's-complement interpretation, so the width and signedness
+    /// dispatch is resolved at monomorphization and the inner loop reads, tests,
+    /// and folds in one pass with no per-value `Vec`, `Value`, text, or `Result`.
+    /// `validity` is the raw little-endian validity bitmap (`None` = all valid);
+    /// the all-valid case is a branch-free inner loop.
+    ///
+    /// Typed decline: an **unsigned** 64-bit value above `i64::MAX` cannot be
+    /// represented in the column model and is returned as
+    /// [`Error::unsupported_feature`], never folded as a wrong value.
+    #[inline]
+    #[allow(clippy::chunks_exact_to_as_chunks)]
+    pub fn push_i64_le<const W: usize, const SIGNED: bool>(
+        &mut self,
+        data: &[u8],
+        validity: Option<&[u8]>,
+    ) -> Result<()> {
+        debug_assert!(matches!(W, 1 | 2 | 4 | 8));
+        let rows = data.len() / W;
+        self.scanned += rows as u64;
+        let pred = self.predicate;
+        let op = self.op;
+        match validity {
+            None => {
+                for chunk in data.chunks_exact(W) {
+                    let Some(v) = read_le_int::<W, SIGNED>(chunk) else {
+                        return Err(unsigned_overflow());
+                    };
+                    if pred.int_matches_i64(v) {
+                        self.fold_int(v, op);
+                    }
+                }
+            }
+            Some(vb) => {
+                let mut i = 0usize;
+                for chunk in data.chunks_exact(W) {
+                    if (vb[i >> 3] >> (i & 7)) & 1 == 0 {
+                        self.nulls += 1;
+                        i += 1;
+                        continue;
+                    }
+                    let Some(v) = read_le_int::<W, SIGNED>(chunk) else {
+                        return Err(unsigned_overflow());
+                    };
+                    if pred.int_matches_i64(v) {
+                        self.fold_int(v, op);
+                    }
+                    i += 1;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Fold a contiguous little-endian, fixed-width **floating-point** buffer
+    /// directly. `W` is 4 (`f32`) or 8 (`f64`); `data.len()` must be an exact
+    /// multiple of `W`. Same single-pass, monomorphized contract as
+    /// [`Self::push_i64_le`], with the all-valid case a branch-free inner loop.
+    #[inline]
+    #[allow(clippy::chunks_exact_to_as_chunks)]
+    pub fn push_f64_le<const W: usize>(&mut self, data: &[u8], validity: Option<&[u8]>) {
+        debug_assert!(matches!(W, 4 | 8));
+        let rows = data.len() / W;
+        self.scanned += rows as u64;
+        let pred = self.predicate;
+        let op = self.op;
+        match validity {
+            None => {
+                for chunk in data.chunks_exact(W) {
+                    let v = read_le_f64::<W>(chunk);
+                    if pred.float_matches(v) {
+                        self.fold_float(v, op);
+                    }
+                }
+            }
+            Some(vb) => {
+                let mut i = 0usize;
+                for chunk in data.chunks_exact(W) {
+                    if (vb[i >> 3] >> (i & 7)) & 1 == 0 {
+                        self.nulls += 1;
+                        i += 1;
+                        continue;
+                    }
+                    let v = read_le_f64::<W>(chunk);
+                    if pred.float_matches(v) {
+                        self.fold_float(v, op);
+                    }
+                    i += 1;
+                }
+            }
+        }
+    }
+
     /// Record `rows` addressed-but-not-decoded rows (a statistics skip), plus the
     /// nulls the chunk's statistics declare (so the validity accounting matches a
     /// decoded scan).
@@ -399,7 +558,7 @@ impl Accumulator {
             FusedOp::Max => {
                 self.max_int = Some(self.max_int.map_or(v, |m| m.max(v)));
             }
-            FusedOp::Avg => self.sum_float += v as f64,
+            FusedOp::Avg => self.sum_int += i128::from(v),
             FusedOp::Grouped => {
                 if let Some(c) = self.groups.get_mut(&v) {
                     *c += 1;
@@ -464,7 +623,16 @@ impl Accumulator {
                 Some(v) => FusedMeasure::MaxF(v),
                 None => FusedMeasure::Null,
             },
-            (FusedOp::Avg, _) => {
+            (FusedOp::Avg, ColumnKind::Int) => {
+                if self.matched == 0 {
+                    FusedMeasure::Null
+                } else {
+                    // The exact `i128` sum is divided once, matching the reference
+                    // and pyarrow/DuckDB within the oracle tolerance.
+                    FusedMeasure::Avg(self.sum_int as f64 / self.matched as f64)
+                }
+            }
+            (FusedOp::Avg, ColumnKind::Float) => {
                 if self.matched == 0 {
                     FusedMeasure::Null
                 } else {
