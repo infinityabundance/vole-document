@@ -1,0 +1,197 @@
+{
+ "agreement": {
+  "current_cli": {
+   "e_large.arrow": "equal",
+   "e_multi.arrow": "equal",
+   "e_small.arrow": "equal"
+  },
+  "current_inproc": {
+   "e_large.arrow": "equal",
+   "e_multi.arrow": "equal",
+   "e_small.arrow": "equal"
+  },
+  "duckdb": {
+   "e_large.arrow": "equal",
+   "e_multi.arrow": "equal",
+   "e_small.arrow": "equal"
+  },
+  "pyarrow": {
+   "e_large.arrow": "equal",
+   "e_multi.arrow": "equal",
+   "e_small.arrow": "equal"
+  }
+ },
+ "campaign": "evidence/campaigns/2026-10-12-phase28-5-fused-arrow-e41a78fe",
+ "court_status": "PASS",
+ "env": {
+  "arch": "x86_64",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "ab9d38f3dac0e2e222ca2677ffac6774226a0cf83636ea1eabd3f45e142b4a2a",
+  "build_args": "--release --locked --all-features",
+  "campaign": "evidence/campaigns/2026-10-12-phase28-5-fused-arrow-e41a78fe",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "141a41a92897a7d21968cd6e0fe0ddba4161e14687f15c75b52fb413515ab52d",
+  "current_inproc": "the shipped observe path in the SAME process (derived cache off): attributes the win to the kernel, not to avoiding process spawn",
+  "duckdb_version": "1.5.6",
+  "env_affecting_semantics": {
+   "LC_ALL": "C"
+  },
+  "evidence_cap": 1024,
+  "fixtures_len_sha256": {
+   "e_large.arrow": {
+    "len": 2003250,
+    "sha256": "f9be9f79249be07a83025bcbf9d9ca72fa76a36974655d05574a4421121a7092"
+   },
+   "e_multi.arrow": {
+    "len": 29410,
+    "sha256": "45f2db88b52f2068de9635eca0e7084c4aedc0712b51211809f6834dc6389419"
+   },
+   "e_small.arrow": {
+    "len": 6642,
+    "sha256": "22c3164ec90ad46d42481c65ce00c8a630a1e0b1c531dbedb0fdf9fa996f90a6"
+   }
+  },
+  "headline_metric": "in-process steady-state median",
+  "historical_control": "evidence/campaigns/2026-10-12-phase28-2-arrow-econ-f7e0a961 (shipped VOLE steady median = 2.25x DuckDB, 29.1x pyarrow on the six-question envelope)",
+  "iters": 15,
+  "lanes": [
+   "fused",
+   "current_inproc",
+   "current_cli",
+   "pyarrow",
+   "duckdb"
+  ],
+  "measured_commit": "e41a78fe14cc2d6b60bd2ff44fdbb0f1a4dacb86",
+  "nproc": "16",
+  "phase": "28.5 \u2014 fused Arrow predicate/aggregate kernel (decision Experiment 1)",
+  "profile": "release",
+  "pyarrow_q2e": "pyarrow.compute.indices_nonzero over the real Arrow data (the equal contract for the coordinates)",
+  "pyarrow_version": "25.0.1",
+  "python": "Python 3.11.2",
+  "questions": {
+   "Q2": "count(*) where numeric column > K",
+   "Q2E": "Q2 + matching-row coordinates/evidence"
+  },
+  "reps": 9,
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "service": "analytical",
+  "tree_state": " M src/adapter/arrow.rs  M src/field/observe.rs  M src/field/session.rs  M src/main.rs  M tests/arrow_adapter.rs ?? evidence/campaigns/2026-10-12-phase28-5-fused-arrow-e41a78fe/ ?? tools/fixtures/phase28-5-fused-arrow.py ?? tools/phase28-5-1-fused-arrow-court.sh ?? tools/phase28-5-fused-arrow-econ-court.sh ",
+  "utc": "2026-10-12T14:08:16Z",
+  "vole_substrate": "--profile runtime --packed",
+  "warmup": 3
+ },
+ "estimator": {
+  "current_cli": {
+   "geomean": 0.005688742693607991,
+   "geomean_ci": [
+    0.0,
+    0.009617091403884911
+   ],
+   "mde": 0.007653997146769289,
+   "median": 0.004573170731707317,
+   "median_ci": [
+    0.0,
+    0.010709336021166688
+   ],
+   "n_fixtures": 3,
+   "n_samples": 27,
+   "q": "Q2"
+  },
+  "current_inproc": {
+   "geomean": 0.032758659467069275,
+   "geomean_ci": [
+    0.0,
+    0.04238785469733213
+   ],
+   "mde": 0.0301987284277918,
+   "median": 0.025335775335775336,
+   "median_ci": [
+    0.0,
+    0.04225352112676056
+   ],
+   "n_fixtures": 3,
+   "n_samples": 27,
+   "q": "Q2"
+  },
+  "duckdb": {
+   "geomean": 0.03583817510014419,
+   "geomean_ci": [
+    0.0,
+    0.1656521568937491
+   ],
+   "mde": 0.11935402010825069,
+   "median": 0.0076726342710997444,
+   "median_ci": [
+    0.0,
+    0.16699801192842942
+   ],
+   "n_fixtures": 3,
+   "n_samples": 27,
+   "q": "Q2"
+  },
+  "pyarrow": {
+   "geomean": 1.9947699463210742,
+   "geomean_ci": [
+    0.0,
+    6.469438716002964
+   ],
+   "mde": 4.618082470342316,
+   "median": 0.6,
+   "median_ci": [
+    0.0,
+    6.461538461538462
+   ],
+   "n_fixtures": 3,
+   "n_samples": 27,
+   "q": "Q2"
+  }
+ },
+ "estimator_notes": "paired per-fixture ratio, one ratio per rep (inner samples reduced to a median); median + geometric mean with a fixed-seed (28515) cluster bootstrap over the 3 fixtures, B=20000; MDE from the median-CI half-width (80% power, normal approx). With only 3 fixture clusters the bootstrap is coarse and is stated as such.",
+ "evidence_variant": {
+  "comparator": "pyarrow",
+  "geomean": 1.0312467733687412,
+  "mde": 1.1869178798137456,
+  "median": 0.6,
+  "median_ci": [
+   0.0,
+   1.6607142857142858
+  ]
+ },
+ "fixtures": [
+  "e_small.arrow",
+  "e_multi.arrow",
+  "e_large.arrow"
+ ],
+ "phase": "28.5 \u2014 fused Arrow predicate/aggregate kernel (decision Experiment 1)",
+ "primary_gate": {
+  "comparator": "current_inproc",
+  "geomean": 0.032758659467069275,
+  "mde": 0.0301987284277918,
+  "median": 0.025335775335775336,
+  "median_ci": [
+   0.0,
+   0.04225352112676056
+  ],
+  "resolved": true
+ },
+ "q2e_agreement": {
+  "e_large.arrow": {
+   "fused_count": 42553,
+   "prefix_agrees": true,
+   "pyarrow_count": 42553
+  },
+  "e_multi.arrow": {
+   "fused_count": 499,
+   "prefix_agrees": true,
+   "pyarrow_count": 499
+  },
+  "e_small.arrow": {
+   "fused_count": 99,
+   "prefix_agrees": true,
+   "pyarrow_count": 99
+  }
+ },
+ "question": "count(*) where numeric column > K, over the substrate Arrow bytes",
+ "timer_resolution_us": 1,
+ "verdict": "RESOLVED-POSITIVE"
+}

@@ -1,0 +1,4 @@
+fixture	vole_ok	len_ok	sha_ok	cmp_ok	mat_us
+e_small.arrow	true	true	true	true	5064
+e_multi.arrow	true	true	true	true	3372
+e_large.arrow	true	true	true	true	10629

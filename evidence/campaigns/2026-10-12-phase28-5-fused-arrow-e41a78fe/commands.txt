@@ -1,0 +1,19 @@
+docker compose run --rm --no-TTY analytical bash tools/phase28-5-fused-arrow-econ-court.sh
+# PROFILE defaults to release (target/release/vole-document).
+# Inside the court:
+#   cargo build --release --locked --all-features
+#   python3 tools/fixtures/make-arrow.py --econ $WORK/corpus
+#   VOLE: $BIN field-build F.arrow --store STORE --voldoc F.voldoc --profile runtime --packed
+#         $BIN arrow-fused --store STORE --field HEX --packed --column N --gt K \
+#             [--evidence-cap C] --warmup W --repeat R --also-current   # Q2 / Q2E
+#         $BIN arrow-fused ... --warmup 0 --repeat 1                    # cold process
+#         python3 tools/fixtures/phase28-5-fused-arrow.py currentcold --bin $BIN ...
+#   pyarrow: python3 tools/fixtures/phase21-16-arrow-pyarrow.py build --source F.arrow --dir PD
+#            python3 tools/fixtures/phase28-5-fused-arrow.py pyarrow-q2  --dir PD --plan PLAN ...
+#            python3 tools/fixtures/phase28-5-fused-arrow.py pyarrow-q2e --dir PD --plan PLAN ...
+#            python3 tools/fixtures/phase21-16-arrow-pyarrow.py query --dir PD --q Q2 ...  (cold)
+#   DuckDB:  python3 tools/fixtures/phase21-16-arrow-duckdb.py build --source F.arrow --dir DD
+#            python3 tools/fixtures/phase28-5-fused-arrow.py duckdb-q2 --dir DD --plan PLAN --threads 4 ...
+#            python3 tools/fixtures/phase21-16-arrow-duckdb.py query --dir DD --q Q2 ...  (cold)
+#   aggregate: python3 tools/fixtures/phase28-5-fused-arrow.py collect --raw RAW
+#              python3 tools/fixtures/phase28-5-fused-arrow.py aggregate --raw RAW --campaign CAMPAIGN --env ENV

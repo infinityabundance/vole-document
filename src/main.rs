@@ -181,6 +181,11 @@ const USAGE_FIELD: &str = "\
          request line is the per-observation flag grammar WITHOUT --store/--field)
     vole-document find    --store DIR --field HEX --text PATTERN [--entropyfs | --packed]
         (format-agnostic lexical search: the common SearchMatch selector)
+    vole-document arrow-fused --store DIR --field HEX --column SPEC --gt N
+        [--evidence-cap K] [--warmup W] [--repeat R] [--also-current] [--entropyfs | --packed]
+        (Phase-28.5 fused predicate/aggregate kernel over the substrate Arrow bytes;
+         reports per-iteration microseconds as JSON; --also-current interleaves the
+         shipped observe text path in the same process for attribution)
     vole-document explain --store DIR --field HEX <selector> --kind KIND [--analyze] [--entropyfs | --packed]
     vole-document preview --store DIR --field HEX --page N [--json] [--entropyfs | --packed]
     vole-document materialize --store DIR --field HEX --exact --output FILE [--entropyfs | --packed]
@@ -347,6 +352,8 @@ fn run(args: &[String]) -> Result<()> {
         "observe" => cmd_field_observe(args, limits),
         #[cfg(feature = "field")]
         "observe-batch" => cmd_field_observe_batch(args, limits),
+        #[cfg(all(feature = "field", feature = "arrow"))]
+        "arrow-fused" => cmd_arrow_fused(args, limits),
         #[cfg(feature = "field")]
         "find" => cmd_field_find(args, limits),
         #[cfg(feature = "field")]
@@ -5670,6 +5677,317 @@ fn cmd_field_observe_batch(args: &[String], limits: Limits) -> Result<()> {
             "observe-batch: no request was answered",
         ));
     }
+    Ok(())
+}
+
+/// `arrow-fused --store DIR --field HEX [--packed|--entropyfs] --column SPEC --gt N`
+/// `[--evidence-cap K] [--warmup W] [--repeat R] [--also-current]`.
+///
+/// The Phase-28.5 **fused predicate/aggregate** decision experiment. It reads the
+/// Arrow IPC bytes from the VOLE field/substrate — materialized exactly once from
+/// the field's own exact authority, never re-opening the source file — parses the
+/// Arrow model once, then streams the addressed numeric column through a native
+/// predicate kernel that decodes only that column (no typed observation model, no
+/// per-value allocation, no text/JSON) and reports the accumulator, optionally
+/// with bounded row evidence (row/batch coordinates + exact source byte spans).
+///
+/// With `--also-current` it additionally runs the shipped observation path
+/// (`observe --arrow-column SPEC --kind text`, derived cache disabled) in the same
+/// process, interleaved per iteration, so the kernel's contribution over the
+/// current path is attributable rather than confounded with process startup.
+/// Per-iteration wall times (microseconds) are printed as JSON with each answer.
+#[cfg(all(feature = "field", feature = "arrow"))]
+fn cmd_arrow_fused(args: &[String], limits: Limits) -> Result<()> {
+    use vole_document::adapter::arrow::{
+        ArrowModel, FusedEvidence, FusedPredicate, FusedResult, fused_numeric_scan,
+        leaf_index as arrow_leaf_index, parse as arrow_parse,
+    };
+    use vole_document::field::observe::{ObserveRequest, Representation, Selector};
+    use vole_document::field::promote::PromotePolicy;
+    use vole_document::field::provenance::AnswerValue;
+    use vole_document::field::session::{
+        DEFAULT_MODEL_MEMO_BYTES, DocumentFieldSession, SessionOptions,
+    };
+
+    let mut store: Option<PathBuf> = None;
+    let mut field_hex: Option<String> = None;
+    let mut column: Option<String> = None;
+    let mut gt: Option<i64> = None;
+    let mut packed = false;
+    let mut entropyfs = false;
+    let mut evidence_cap: usize = 0;
+    let mut warmup: usize = 3;
+    let mut repeat: usize = 1;
+    let mut also_current = false;
+    let parse_usize = |v: String, flag: &str| -> Result<usize> {
+        v.parse::<usize>()
+            .map_err(|_| Error::usage(format!("{flag} value {v:?} is not a non-negative integer")))
+    };
+    let mut i = 2;
+    while i < args.len() {
+        let a = args[i].as_str();
+        let (flag, inline) = match a.split_once('=') {
+            Some((f, v)) => (f, Some(v)),
+            None => (a, None),
+        };
+        match flag {
+            "--store" => {
+                store = Some(PathBuf::from(field_arg_value(
+                    args, &mut i, "--store", inline,
+                )?))
+            }
+            "--field" => field_hex = Some(field_arg_value(args, &mut i, "--field", inline)?),
+            "--column" => column = Some(field_arg_value(args, &mut i, "--column", inline)?),
+            "--gt" => {
+                let v = field_arg_value(args, &mut i, "--gt", inline)?;
+                gt =
+                    Some(v.parse().map_err(|_| {
+                        Error::usage(format!("--gt value {v:?} is not an integer"))
+                    })?);
+            }
+            "--evidence-cap" => {
+                evidence_cap = parse_usize(
+                    field_arg_value(args, &mut i, "--evidence-cap", inline)?,
+                    "--evidence-cap",
+                )?;
+            }
+            "--warmup" => {
+                warmup = parse_usize(
+                    field_arg_value(args, &mut i, "--warmup", inline)?,
+                    "--warmup",
+                )?;
+            }
+            "--repeat" => {
+                repeat = parse_usize(
+                    field_arg_value(args, &mut i, "--repeat", inline)?,
+                    "--repeat",
+                )?;
+            }
+            "--also-current" => {
+                also_current = true;
+                i += 1;
+            }
+            "--packed" => {
+                packed = true;
+                i += 1;
+            }
+            "--entropyfs" => {
+                entropyfs = true;
+                i += 1;
+            }
+            other => {
+                return Err(Error::usage(format!(
+                    "unknown arrow-fused argument {other:?}"
+                )));
+            }
+        }
+    }
+    if packed && entropyfs {
+        return Err(Error::usage(
+            "--packed and --entropyfs are mutually exclusive seed backends",
+        ));
+    }
+    let store_dir = store.ok_or_else(|| Error::usage("arrow-fused requires --store DIR"))?;
+    let field_hex = field_hex.ok_or_else(|| Error::usage("arrow-fused requires --field HEX"))?;
+    let column = column.ok_or_else(|| Error::usage("arrow-fused requires --column SPEC"))?;
+    let gt = gt.ok_or_else(|| Error::usage("arrow-fused requires --gt N"))?;
+    let repeat = repeat.max(1);
+
+    /// One fused kernel call, timed.
+    fn fused_call(
+        source: &[u8],
+        model: &ArrowModel,
+        leaf_index: u32,
+        gt: i64,
+        cap: usize,
+        limits: Limits,
+    ) -> (u128, Result<FusedResult>) {
+        let t0 = std::time::Instant::now();
+        let r = fused_numeric_scan(
+            source,
+            model,
+            leaf_index,
+            FusedPredicate::Gt(gt),
+            cap,
+            limits,
+        );
+        (t0.elapsed().as_micros(), r)
+    }
+
+    /// One current-path observation, timed; returns the rendered column text.
+    fn current_call(
+        session: &mut DocumentFieldSession,
+        req: &ObserveRequest,
+        limits: Limits,
+    ) -> (u128, Result<String>) {
+        let t0 = std::time::Instant::now();
+        let r = session
+            .observe(req, limits)
+            .map(|(ans, _stats, _fid)| match ans.value {
+                AnswerValue::Text(t) => t,
+                _ => String::new(),
+            });
+        (t0.elapsed().as_micros(), r)
+    }
+
+    /// The current driver's Q2 count over the rendered text: skip empty/`null`
+    /// rows, parse each integer, count those strictly greater than `gt`.
+    fn count_text_gt(text: &str, gt: i64) -> u64 {
+        let mut n = 0u64;
+        for line in text.split('\n') {
+            if line.is_empty() || line == "null" {
+                continue;
+            }
+            if let Ok(v) = line.parse::<i64>()
+                && v > gt
+            {
+                n += 1;
+            }
+        }
+        n
+    }
+
+    let mut session = DocumentFieldSession::open(
+        &store_dir,
+        &field_hex,
+        SessionOptions {
+            entropyfs,
+            packed,
+            model_memo_bytes: DEFAULT_MODEL_MEMO_BYTES,
+            promote: PromotePolicy::default(),
+        },
+    )?;
+    let source = session.source_exact(limits)?;
+    let source_len = source.len();
+    let source_sha = integrity::to_hex(&integrity::sha256(&source));
+    let model = arrow_parse(&source, limits)?;
+    let leaf_index = arrow_leaf_index(&model, &column)?;
+
+    let mut current_req = ObserveRequest::new(
+        Selector::ArrowColumn {
+            spec: column.clone(),
+        },
+        Representation::Text,
+    );
+    // Disable the derived cache so the current path actually recomputes the
+    // observation each iteration; the fused kernel never consults the cache.
+    current_req.use_cache = false;
+
+    let mut fused_us: Vec<u128> = Vec::new();
+    let mut current_us: Vec<u128> = Vec::new();
+    let mut fused_count: Option<u64> = None;
+    let mut current_count: Option<u64> = None;
+    let mut fused_decline: Option<String> = None;
+    let mut current_decline: Option<String> = None;
+    let mut scanned = 0u64;
+    let mut batches = 0u64;
+    let mut evidence: Vec<FusedEvidence> = Vec::new();
+    let mut evidence_truncated = false;
+
+    {
+        let mut run = |current_first: bool, record: bool| {
+            if current_first && also_current {
+                let (cus, cres) = current_call(&mut session, &current_req, limits);
+                if record {
+                    current_us.push(cus);
+                    match cres {
+                        Ok(t) => current_count = Some(count_text_gt(&t, gt)),
+                        Err(e) => current_decline = Some(format!("{}: {e}", e.exit_code())),
+                    }
+                }
+            }
+            let (fus, fres) = fused_call(&source, &model, leaf_index, gt, evidence_cap, limits);
+            if record {
+                fused_us.push(fus);
+                match fres {
+                    Ok(r) => {
+                        fused_count = Some(r.count);
+                        scanned = r.scanned;
+                        batches = r.batches;
+                        evidence = r.evidence;
+                        evidence_truncated = r.evidence_truncated;
+                    }
+                    Err(e) => fused_decline = Some(format!("{}: {e}", e.exit_code())),
+                }
+            }
+            if !current_first && also_current {
+                let (cus, cres) = current_call(&mut session, &current_req, limits);
+                if record {
+                    current_us.push(cus);
+                    match cres {
+                        Ok(t) => current_count = Some(count_text_gt(&t, gt)),
+                        Err(e) => current_decline = Some(format!("{}: {e}", e.exit_code())),
+                    }
+                }
+            }
+        };
+        let total = warmup.saturating_add(repeat);
+        let mut it = 0usize;
+        while it < total {
+            run(it % 2 == 1, it >= warmup);
+            it += 1;
+        }
+    }
+    session.sync()?;
+
+    let mut ev = String::from("[");
+    for (k, e) in evidence.iter().enumerate() {
+        if k > 0 {
+            ev.push(',');
+        }
+        ev.push_str(&format!(
+            "{{\"row\":{},\"batch\":{},\"row_in_batch\":{},\"span\":[{},{}]}}",
+            e.row, e.batch, e.row_in_batch, e.span_start, e.span_end
+        ));
+    }
+    ev.push(']');
+
+    let us_json = |v: &[u128]| -> String {
+        let items: Vec<String> = v.iter().map(|x| x.to_string()).collect();
+        format!("[{}]", items.join(","))
+    };
+    let opt_uint = |v: Option<u64>| -> String {
+        v.map(|x| x.to_string())
+            .unwrap_or_else(|| "null".to_string())
+    };
+    let opt_decline = |v: &Option<String>| -> String {
+        match v {
+            Some(s) => format!("{{\"code\":\"typed\",\"detail\":\"{}\"}}", json_escape(s)),
+            None => "null".to_string(),
+        }
+    };
+
+    println!(
+        concat!(
+            "{{\"ok\":true,\"lane\":\"fused-vole\",",
+            "\"column\":\"{}\",\"gt\":{},",
+            "\"leaf_index\":{},\"source_len\":{},\"source_sha256\":\"{}\",",
+            "\"count\":{},\"scanned\":{},\"batches\":{},",
+            "\"declined\":{},\"decline\":{},",
+            "\"evidence_cap\":{},\"evidence_count\":{},\"evidence_truncated\":{},\"evidence\":{},",
+            "\"fused_us\":{},\"current_us\":{},",
+            "\"current_count\":{},\"current_declined\":{},\"current_decline\":{}}}"
+        ),
+        json_escape(&column),
+        gt,
+        leaf_index,
+        source_len,
+        source_sha,
+        opt_uint(fused_count),
+        scanned,
+        batches,
+        fused_decline.is_some(),
+        opt_decline(&fused_decline),
+        evidence_cap,
+        evidence.len(),
+        evidence_truncated,
+        ev,
+        us_json(&fused_us),
+        us_json(&current_us),
+        opt_uint(current_count),
+        current_decline.is_some(),
+        opt_decline(&current_decline),
+    );
     Ok(())
 }
 

@@ -1,0 +1,109 @@
+fixture	lane	q	rep	us	count	declined
+e_small.arrow	current_cli	Q2	1	17669	99	false
+e_small.arrow	current_cli	Q2	2	718	99	false
+e_small.arrow	current_cli	Q2	3	807	99	false
+e_small.arrow	current_cli	Q2	4	778	99	false
+e_small.arrow	current_cli	Q2	5	812	99	false
+e_small.arrow	current_cli	Q2	6	722	99	false
+e_small.arrow	current_cli	Q2	7	707	99	false
+e_small.arrow	current_cli	Q2	8	739	99	false
+e_small.arrow	current_cli	Q2	9	754	99	false
+e_small.arrow	fused	Q2	1	1653	99	false
+e_small.arrow	fused	Q2	2	674	99	false
+e_small.arrow	fused	Q2	3	766	99	false
+e_small.arrow	fused	Q2	4	684	99	false
+e_small.arrow	fused	Q2	5	695	99	false
+e_small.arrow	fused	Q2	6	729	99	false
+e_small.arrow	fused	Q2	7	765	99	false
+e_small.arrow	fused	Q2	8	679	99	false
+e_small.arrow	fused	Q2	9	680	99	false
+e_small.arrow	pyarrow	Q2	1	69576		false
+e_small.arrow	pyarrow	Q2	2	56565		false
+e_small.arrow	pyarrow	Q2	3	57951		false
+e_small.arrow	pyarrow	Q2	4	56519		false
+e_small.arrow	pyarrow	Q2	5	58258		false
+e_small.arrow	pyarrow	Q2	6	56589		false
+e_small.arrow	pyarrow	Q2	7	57223		false
+e_small.arrow	pyarrow	Q2	8	55543		false
+e_small.arrow	pyarrow	Q2	9	51566		false
+e_small.arrow	duckdb	Q2	1	99421		false
+e_small.arrow	duckdb	Q2	2	102980		false
+e_small.arrow	duckdb	Q2	3	105028		false
+e_small.arrow	duckdb	Q2	4	106724		false
+e_small.arrow	duckdb	Q2	5	104476		false
+e_small.arrow	duckdb	Q2	6	105397		false
+e_small.arrow	duckdb	Q2	7	103456		false
+e_small.arrow	duckdb	Q2	8	103395		false
+e_small.arrow	duckdb	Q2	9	94873		false
+e_multi.arrow	current_cli	Q2	1	11988	499	false
+e_multi.arrow	current_cli	Q2	2	642	499	false
+e_multi.arrow	current_cli	Q2	3	644	499	false
+e_multi.arrow	current_cli	Q2	4	656	499	false
+e_multi.arrow	current_cli	Q2	5	635	499	false
+e_multi.arrow	current_cli	Q2	6	637	499	false
+e_multi.arrow	current_cli	Q2	7	661	499	false
+e_multi.arrow	current_cli	Q2	8	594	499	false
+e_multi.arrow	current_cli	Q2	9	689	499	false
+e_multi.arrow	fused	Q2	1	822	499	false
+e_multi.arrow	fused	Q2	2	834	499	false
+e_multi.arrow	fused	Q2	3	858	499	false
+e_multi.arrow	fused	Q2	4	755	499	false
+e_multi.arrow	fused	Q2	5	767	499	false
+e_multi.arrow	fused	Q2	6	744	499	false
+e_multi.arrow	fused	Q2	7	749	499	false
+e_multi.arrow	fused	Q2	8	867	499	false
+e_multi.arrow	fused	Q2	9	813	499	false
+e_multi.arrow	pyarrow	Q2	1	54875		false
+e_multi.arrow	pyarrow	Q2	2	50784		false
+e_multi.arrow	pyarrow	Q2	3	50087		false
+e_multi.arrow	pyarrow	Q2	4	50187		false
+e_multi.arrow	pyarrow	Q2	5	50498		false
+e_multi.arrow	pyarrow	Q2	6	50798		false
+e_multi.arrow	pyarrow	Q2	7	56514		false
+e_multi.arrow	pyarrow	Q2	8	51332		false
+e_multi.arrow	pyarrow	Q2	9	53331		false
+e_multi.arrow	duckdb	Q2	1	94075		false
+e_multi.arrow	duckdb	Q2	2	93026		false
+e_multi.arrow	duckdb	Q2	3	95160		false
+e_multi.arrow	duckdb	Q2	4	92475		false
+e_multi.arrow	duckdb	Q2	5	94797		false
+e_multi.arrow	duckdb	Q2	6	93856		false
+e_multi.arrow	duckdb	Q2	7	99962		false
+e_multi.arrow	duckdb	Q2	8	93467		false
+e_multi.arrow	duckdb	Q2	9	93249		false
+e_large.arrow	current_cli	Q2	1	19991	42553	false
+e_large.arrow	current_cli	Q2	2	7727	42553	false
+e_large.arrow	current_cli	Q2	3	7649	42553	false
+e_large.arrow	current_cli	Q2	4	8607	42553	false
+e_large.arrow	current_cli	Q2	5	7801	42553	false
+e_large.arrow	current_cli	Q2	6	7928	42553	false
+e_large.arrow	current_cli	Q2	7	7937	42553	false
+e_large.arrow	current_cli	Q2	8	7681	42553	false
+e_large.arrow	current_cli	Q2	9	7802	42553	false
+e_large.arrow	fused	Q2	1	7355	42553	false
+e_large.arrow	fused	Q2	2	7729	42553	false
+e_large.arrow	fused	Q2	3	7273	42553	false
+e_large.arrow	fused	Q2	4	6884	42553	false
+e_large.arrow	fused	Q2	5	7097	42553	false
+e_large.arrow	fused	Q2	6	7375	42553	false
+e_large.arrow	fused	Q2	7	7555	42553	false
+e_large.arrow	fused	Q2	8	7197	42553	false
+e_large.arrow	fused	Q2	9	7560	42553	false
+e_large.arrow	pyarrow	Q2	1	60440		false
+e_large.arrow	pyarrow	Q2	2	53348		false
+e_large.arrow	pyarrow	Q2	3	55106		false
+e_large.arrow	pyarrow	Q2	4	57744		false
+e_large.arrow	pyarrow	Q2	5	57420		false
+e_large.arrow	pyarrow	Q2	6	58729		false
+e_large.arrow	pyarrow	Q2	7	59585		false
+e_large.arrow	pyarrow	Q2	8	58030		false
+e_large.arrow	pyarrow	Q2	9	60593		false
+e_large.arrow	duckdb	Q2	1	110579		false
+e_large.arrow	duckdb	Q2	2	101980		false
+e_large.arrow	duckdb	Q2	3	113835		false
+e_large.arrow	duckdb	Q2	4	122189		false
+e_large.arrow	duckdb	Q2	5	108874		false
+e_large.arrow	duckdb	Q2	6	110793		false
+e_large.arrow	duckdb	Q2	7	112614		false
+e_large.arrow	duckdb	Q2	8	108677		false
+e_large.arrow	duckdb	Q2	9	111610		false
