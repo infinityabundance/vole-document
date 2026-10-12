@@ -371,6 +371,24 @@ executor** (28.5), a **coarse structural** fragment directory (28.6), and
 **incremental observation** under the minimal dependency-signature index (28.7) —
 each with its own falsifiable court and the recorded negatives carried forward.
 
+## Phase-29 outcomes (generalized fused execution, coarse structural index, incremental observation)
+
+Phase 29 builds exactly the three mechanisms the Phase-28 gates justified, each
+with its own falsifiable court. Plan: [phase-29-plan.md](../phases/phase-29-plan.md);
+results: [phase-29-results.md](../phases/phase-29-results.md).
+
+| Item | Question | Outcome |
+|---|---|---|
+| 29.1 Generalized fused execution | Can one bounded, validity-aware fused kernel (shared versioned interface + a physical scanner per format) beat the shipped path and stand against pyarrow/DuckDB across Arrow/Parquet/CSV/fixed-width and count/sum/min/max/avg/grouped? | **Shipped.** `src/adapter/fused.rs` (`FUSED_PLAN_VERSION = 1`) + `fused-scan`. Beats **DuckDB every cell** (median **0.0033**, 570/0/0) and the shipped in-process path (70/0, median **0.034**); vs **pyarrow** median **0.078** but split (**406/41/163**) — its vectorized C++ kernel wins large inputs, so the large-input Arrow gap narrowed **6.46× → ~2.7–3.0×** (improved, not closed). **Parquet stats-skip `count` 5.4× faster than pyarrow**; **CSV 15–51× slower**. Exactness **12/12**, oracle agreement **228/228**; out-of-subset columns decline typed. `2026-10-12-phase29-1-fused-19d2c372` |
+| 29.2 Coarse structural index | Does a realized, persisted coarse index serve a narrow request with fewer real bytes than the whole-descriptor path, and at what directory overhead? | **Shipped.** `src/field/coarse.rs` + `coarse-index`/`coarse-read`. **3 real defects fixed** (the `--use-map` lane never worked; unbounded Thrift-Compact recursion → stack overflow on a hostile Parquet footer; O(n²) PDF scan). **Span** requests cut the source payload to one native unit (**PDF 456×, DOCX/ODT 5×, Parquet 2.7×**); the closure beats the whole-descriptor control **4/4** and page-SQLite **3/4**. **Honest loss:** the natural **reading** request narrows in only **1/4** formats; PDF's directory is heavy (**30 KB**). Exactness **4/4**. Control Phase 28.6. `2026-10-12-phase29-2-coarse-index-1cda34b4` |
+| 29.3 Revision-aware incremental observation | Can semantic dependency edges make cross-revision reuse **correct**, and what does the index cost? | **Shipped; MARGINAL/scoped.** `src/field/incremental.rs` + `field-incremental` (versioned `VOLEINC1`; physical **and** semantic edges; full/cas/incremental lanes). **Correctness verified** — incremental answers **== full rebuild on every revision**, including the style/shared-string cases where the physical-only CAS reuses **1042 DOCX paragraphs / 24 XLSX cells** and **diverges wrong**. Reuse **87.3% CSV / 59.2% JSON**, **0%** on the real whole-document draft chain. Index **27.3%** of source (**above the gate's 10% bar**; drops the per-observation identity node and is still above it) → **MARGINAL/scoped**. Exactness **16/16**. Control Phase 28.7. `2026-10-12-phase29-3-incremental-879e6334` |
+
+**Order carried forward.** 29.1's large-input pyarrow loss and 29.3's index cost
+are the recorded boundaries: the fused kernel is a resolved steady-state win
+against the shipped path and DuckDB but not against pyarrow's vectorized reader on
+large inputs, and incremental observation is correct but pays more index than the
+28.7 gate allowed.
+
 ## Unmeasured gates
 
 - `N4` (decline-rate threshold): no pre-registered threshold exists, so it is

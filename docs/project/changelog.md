@@ -2,6 +2,64 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.39] — Phase 29: generalized fused execution, coarse structural index, incremental observation — *unreleased*
+
+- **29.1 — generalized fused execution kernel.** The Phase-28.5 Arrow
+  single-operator kernel is generalized to **one versioned logical plan** —
+  projection + `Always`/`Gt`/`Eq`/inclusive-`Range` predicate +
+  `count`/`sum`/`min`/`max`/`avg`/`grouped` accumulator — over a **shared
+  interface** (`src/adapter/fused.rs`, `FUSED_PLAN_VERSION = 1`) with a **physical
+  scanner per format** (Arrow, Parquet, CSV/TSV, fixed-width), exposed as the
+  **`fused-scan`** subcommand. The accumulator is **validity-aware** (SQL null
+  semantics: nulls never satisfy a predicate and every aggregate excludes them)
+  and consumes native `i64`/`f64` + optional validity, decoding **only the
+  addressed column**; everything outside the subset (text/decimal/dictionary
+  columns, an unsupported codec, `grouped` on a float) is a **typed decline**,
+  never a wrong answer. Result (in-process steady-state; ADR-0054): beats **DuckDB
+  every cell** (median **0.0033**, 570/0/0) and the shipped in-process `observe`
+  path (70/0, median **0.034**); vs **pyarrow** median **0.078** (geomean 0.263)
+  but split — **406/41/163** — so the large-input Arrow gap went **6.46× →
+  ~2.7–3.0×** (improved, **not closed**). **Parquet statistics-skip `count` is
+  ~5.4× faster than pyarrow**; **CSV is 15–51× slower** (pyarrow's C++ reader).
+  Exactness **12/12**, oracle agreement **228/228**. Regression tests
+  `tests/fused_kernel.rs`; correctness court `tools/phase29-1-1-fused-court.sh`.
+  `2026-10-12-phase29-1-fused-19d2c372`.
+- **29.2 — coarse structural index.** The Phase-28.6 decision is shipped as a
+  **persisted coarse structural directory** (`src/field/coarse.rs`; `coarse-index`
+  and `coarse-read`) recording a partition of `[0, source_len)` into format-native
+  addressable units of the **verbatim authority object** (SHA-256 checked against
+  the declared source), serving a narrow request from real `pread` range reads of
+  whole units. No seed node is added (ADR-0060 unaffected); a missing/malformed
+  index, an unknown format, or an uncovered unit **degrades to the full read,
+  never a wrong answer**. **Three real defects fixed**: the `--use-map` lane never
+  worked (fetch refused `expand=false`; split into `fetch`/`read_unit`); unbounded
+  Thrift-Compact recursion → stack overflow on a hostile Parquet footer
+  (`MAX_THRIFT_DEPTH = 64`, typed decline); an O(n²) PDF object scan (now linear).
+  Result: **span** requests cut the source payload to one native unit (**PDF
+  456×, DOCX/ODT 5×, Parquet 2.7×**) and the closure beats the whole-descriptor
+  control **4/4** and the page-level SQLite control **3/4**; **honest loss** — the
+  natural **reading** request narrows in only **1/4** formats (DOCX/ODT/Parquet
+  materialize the whole exact source), and PDF's directory is heavy (**30,461 B**).
+  Exactness **4/4**. Test `tests/coarse_index.rs`; court
+  `tools/phase29-2-coarse-index-court.sh`; control Phase 28.6.
+  `2026-10-12-phase29-2-coarse-index-1cda34b4`.
+- **29.3 — revision-aware incremental observation.** `src/field/incremental.rs`
+  and the `field-incremental` subcommand ship a **versioned durable index**
+  (`VOLEINC1`) mapping a stable observation identity to its verified dependency
+  signature (**physical** fragment content ids **plus** **semantic** context ids)
+  and the content id of its verified derived output, with three lanes (**full**
+  rebuild / physical-only **cas** control / **incremental**). The four ADR-0060
+  namespaces stay **distinct**. **Correctness verified**: the incremental lane's
+  answers **equal a full rebuild on every revision**, *including* the DOCX style
+  and XLSX shared-string cases where the physical-only CAS reuses **1042 DOCX
+  paragraphs / 24 XLSX cells and diverges wrong** (**1,066** semantic-only
+  invalidations) — the 28.7 fact reproduced by a real mechanism. Reuse **87.3%
+  CSV / 59.2% JSON**, **0%** on the real whole-document draft chain (`nist-sp800-34`).
+  **Index 745,108 B = 27.3% of source** — **above the Phase-28.7 gate's ≤10% bar**
+  (even with the per-observation identity node dropped) → **MARGINAL/scoped**.
+  Exactness **16/16** revisions. Court `tools/phase29-3-incremental-court.sh`;
+  control Phase 28.7. `2026-10-12-phase29-3-incremental-879e6334`.
+
 ## [0.1.0-alpha.38] — Phase 28: detection completion, competitor envelope, three decision experiments — *unreleased*
 
 - **28.1 — detection completion (findings 21 → 15).** The stratified real-world

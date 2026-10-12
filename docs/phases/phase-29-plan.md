@@ -1,6 +1,9 @@
 # Phase 29 — The winning mechanisms (generalize fused execution, coarse index, incremental observation)
 
-> **Status:** planned (frozen contract below). Branch `phase29`.
+> **Status:** shipped — all three subphases (29.1 fused execution, 29.2 coarse
+> structural index, 29.3 incremental observation). Branch `phase29`; release
+> `0.1.0-alpha.39`. Results: [phase-29-results.md](phase-29-results.md). The frozen
+> contract is below (kept, not rewritten).
 > Phase 28's three decision gates set this order. Phase 29 builds only what the
 > gates justified, each with its own falsifiable court. Same rule as every
 > subphase: exactness is the invariant, negatives are recorded, no claim without
