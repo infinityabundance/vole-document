@@ -128,9 +128,9 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   **≈46.2 → 35.5** (still 10.5–42× slower), with the full-matrix pyarrow median
   **0.0772 → 0.0461** (W/T/L **406/41/163 → 489/8/81**), exactness **3/3 · 12/12**,
   and the econ court's `IFS` defect fixed; **30.2 shipped**: the fused CSV kernel
-  beats pyarrow on **equal** work (parse + aggregate) at a paired median **0.342**
-  (**~2.9×**; sealed receipt **0.362**), still **~9× slower** than the 30.1
-  aggregation-only lane; **30.3 shipped**: the `VOLEINC2` incremental index takes
+  beats pyarrow on **equal** work (parse + aggregate) at a paired median **0.362**
+  [0.312, 0.392] (**~2.8×**, 49/0/1; the commit re-run read 0.342), still **~9×**
+  slower than the 30.1 aggregation-only lane; **30.3 shipped**: the `VOLEINC2` incremental index takes
   the sealed metric **27.29 % → 7.31 %** (≤10 %) with reuse 49.6 % and correctness
   held (whole-set sum 24.82 %, redraft reuse 0 % — recorded); **30.4 shipped**: the
   coarse reading request narrows in **3/4** formats (DOCX/ODT **~3.29 MB → 13.0 /

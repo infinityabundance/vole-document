@@ -109,6 +109,7 @@ has no intrinsic pagination; `Page(n)` is never synthesized (ADR-0033/0038).
 | JSON comparator repair (modern SQLite+JSONB, span-preserving baseline) | exact 7/7 | `evidence/campaigns/2026-10-09-phase21-5-json-econ-3400385/` |
 | YAML span-preserving comparator (parity with the JSON court) | exact 8/8 | `evidence/campaigns/2026-10-10-phase21-6-yaml-econ-92edce73/` |
 | CSV O(n²)→O(n) metadata fix (`csv_common_metadata`) | large.csv metadata ~16.5 min → ~0.5 s | `evidence/campaigns/2026-10-10-phase21-7-1-csv-3006e56a/`, `…/2026-10-10-phase21-7-csv-econ-3006e56a/` |
+| Phase-30 courts (fused CSV 30.2 / incremental index 30.3 / coarse reading 30.4) | `materialize --exact == source` **3/3** (30.2 CSV fixture) · **16/16** (30.3 revisions) · **4/4** (30.4 formats); oracle agreement **52/52** (30.2) | `evidence/campaigns/2026-10-13-phase30-2-csv-8ed3e80b/`, `…/2026-10-13-phase30-3-incremental-f3765c2b/`, `…/2026-10-13-phase30-4-coarse-reading-6764974f/` |
 
 See [Status ledger](../project/status.md) for the full mechanism table and
 [Conformance](../reference/conformance.md) for the courts.
@@ -1025,15 +1026,21 @@ no persisted artifact, and no decoder behavior:
 
 The field CLI flags add `--workers N`, `--packed` (with `--sync=batch|each`),
 and `--promote[=BYTES]`, plus the `observe-batch` command — see the [CLI](cli.md).
-The Phase-29 instruments are also shipped subcommands: **`fused-scan`** (the
+The Phase-29/30 instruments are also shipped subcommands: **`fused-scan`** (the
 shared versioned, validity-aware generalized fused kernel over Arrow/Parquet/CSV/
-fixed-width with `count`/`sum`/`min`/`max`/`avg`/`grouped`), **`coarse-index`** and
+fixed-width with `count`/`sum`/`min`/`max`/`avg`/`grouped`; Phase 30.2 added a
+record-aligned **bounded parallel** CSV scan behind `--workers N`, feature
+`parallel`, which beats pyarrow on read-inclusive parse + aggregate), **`coarse-index`** and
 **`coarse-read`** (the persisted coarse structural directory serving a narrow
-request from real `pread` range reads of the verbatim authority object), and
+request from real `pread` range reads of the verbatim authority object; Phase 30.4
+serves the natural **reading** request from member spans in **3/4** formats, with
+Parquet reading still a recorded loss), and
 **`field-incremental`** (revision-aware incremental observation with a versioned
-physical + semantic dependency index). They never touch the exactness path: a
-query they cannot serve narrows to (or declines into) the full read, never a wrong
-answer. See the [Phase 29 results](../phases/phase-29-results.md).
+physical + semantic dependency index; Phase 30.3 writes the **`VOLEINC2`** index).
+They never touch the exactness path: a query they cannot serve narrows to (or
+declines into) the full read, never a wrong answer. See the
+[Phase 29](../phases/phase-29-results.md) and
+[Phase 30](../phases/phase-30-results.md) results.
 `--packed` and `--workers` are the two Phase-15 mechanisms that touch a persisted
 artifact or a runtime path (`--sync` selects the packed writer's durability policy,
 ADR-0053); `--promote` is refuted on the tested corpus and default-off (ADR-0046).

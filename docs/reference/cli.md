@@ -283,11 +283,12 @@ vole-document field-store-stats --store DIR [--entropyfs | --packed]
 - `explain --analyze` executes the plan and reports the actual work (bytes read
   by class, nodes executed vs reused, decodes, wall/CPU).
 - `materialize --exact` reconstructs the original bytes from the field alone.
-- `field-incremental` is the Phase-29 revision-aware incremental-observation
-  instrument (`src/field/incremental.rs`): it reuses revision N's verified derived
+- `field-incremental` is the revision-aware incremental-observation
+  instrument (`src/field/incremental.rs`; Phase 29 shipped `VOLEINC1`, Phase 30.3
+  ships the **`VOLEINC2`** index): it reuses revision N's verified derived
   observations for revision N+1's field **only** where every **physical and
-  semantic** dependency is unchanged, keyed by a versioned durable index
-  (`VOLEINC1`). `--lane cas` is a physical-only versioned content-addressed
+  semantic** dependency is unchanged, keyed by a versioned durable index.
+  `--lane cas` is a physical-only versioned content-addressed
   **control** (the lane that diverges wrong on a style/shared-string change);
   `--lane full` rebuilds everything. It emits an answering-integrity JSON receipt
   and is **observe-only** — it never touches the exactness path. Outside the

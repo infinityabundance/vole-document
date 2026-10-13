@@ -21,7 +21,8 @@ slower**). On the full econ matrix the pooled pyarrow median improved **0.0772 �
 0.0461** (W/T/L **406/41/163 → 489/8/81**), exactness held, and the Arrow/Parquet
 gain is a **code change**, not a comparator change. The residual CSV loss was then
 attacked directly: **30.2** pushes the fused CSV kernel **past pyarrow on equal
-work** (paired median **0.342**, ≈2.9×), **30.3** shrinks the incremental
+work** (paired median **0.362**, 95 % CI [0.312, 0.392], ≈2.8×, 49/0/1; the commit
+re-run read 0.342), **30.3** shrinks the incremental
 observation index to the gate's **≤10 %** bar (**27.29 % → 7.31 %**, scoped and
 honest), and **30.4** turns the coarse index into a real **reading**-request win in
 **3/4** formats (**1/4** in Phase 29.2). **30.5 (standing negatives) is not started.**
@@ -170,21 +171,23 @@ control Phase 30.1
 
 | comparison (large CSV, `e_large`) | clusters | samples | median | median 95 % CI | geomean | MDE | W/T/L |
 |---|---:|---:|---:|---|---:|---:|---:|
-| pyarrow **read-inclusive** (parse + aggregate) | 10 | 50 | **0.342** | — | — | — | **50/0/0** |
+| pyarrow **read-inclusive** (parse + aggregate) | 10 | 50 | **0.362** | [0.312, 0.392] | 0.360 | 0.058 | **49/0/1** |
 | DuckDB read-inclusive | 10 | 50 | **0.033** | [0.032, 0.034] | 0.035 | 0.001 | 50/0/0 |
 | pyarrow **aggregation-only** (30.1 continuity) | 10 | 50 | **9.710** | [5.300, 12.104] | 9.028 | 4.863 | 0/0/50 |
 | DuckDB aggregation-only | 10 | 50 | 0.835 | [0.805, 0.913] | 0.856 | 0.078 | 38/15/12 |
 
 **The headline: the fused CSV kernel beats pyarrow on the SAME work** — fused /
-pyarrow(**read-inclusive**) median **0.342** (**≈2.9× faster**, **50/50 wins**) →
-**PASS**. Against DuckDB's read-inclusive lane it is **0.033** (≈30×, **50/0/0**).
+pyarrow(**read-inclusive**) median **0.362**, 95 % CI **[0.312, 0.392]** (**≈2.8×
+faster**, **49/0/1**) → **PASS**. Against DuckDB's read-inclusive lane it is
+**0.033** (≈30×, **50/0/0**).
 
-**Receipt note.** The *sealed* paired-bootstrap receipt
-[`…-8ed3e80b`](../../evidence/campaigns/2026-10-13-phase30-2-csv-8ed3e80b/) records
-median **0.362** (95 % CI **[0.312, 0.392]**, W/T/L **49/0/1**) with a **serial
-0.805**; the shipped commit message quotes an earlier re-run at **0.342 / 50-50 /
-serial 1.012**. Either way the read-inclusive fused/pyarrow ratio is **well below
-1.0**, and the **parallel split** is the margin.
+**Receipt note (which number is canonical).** The *sealed* paired-bootstrap receipt
+[`…-8ed3e80b`](../../evidence/campaigns/2026-10-13-phase30-2-csv-8ed3e80b/) is
+**canonical**: median **0.362** (95 % CI **[0.312, 0.392]**, W/T/L **49/0/1**),
+serial **0.805** [0.742, 0.914]. The shipped commit message quotes an earlier
+re-run at **0.342 / 50-50 / serial 1.012**; that figure is recorded here as the
+**commit** number, not the receipt. Either way the read-inclusive fused/pyarrow
+ratio is **well below 1.0**, and the **parallel split** is the margin.
 
 **The honest caution (do not read the headline against the 30.1 number).** The
 Phase-30.1 CSV pyarrow lane timed **only aggregation** over an already-parsed
@@ -192,8 +195,9 @@ Phase-30.1 CSV pyarrow lane timed **only aggregation** over an already-parsed
 is **still ~9× slower** (the 30.1 → 30.2 continuity reading is **35.5 → 9.0** on the
 geometric mean; the sealed aggregation-only median is **9.710**). **Serial
 continuity:** with `--workers 1` the fused scanner against pyarrow read-inclusive is
-**1.012** (sealed **0.805**) — the **parallel split is what crosses the line**; a
-single thread is at parity/slightly behind.
+**0.805** [0.742, 0.914] in the sealed receipt (the commit re-run read **1.012**) —
+the **parallel split is what crosses the line**; a single thread is at
+parity/slightly behind.
 
 **Cold (fresh-process wall, ns).** fused median **3,088,644**; pyarrow
 **76,271,908**; DuckDB **206,848,406**.
@@ -315,12 +319,13 @@ recorded-negatives ledger ([roadmap](../project/roadmap.md),
   comparable, and the `analytical` run is authoritative.
 - **30.2 — SHIPPED: the CSV loss is closed on equal work.** With a record-aligned,
   bounded parallel scan and a SIMD field search, the fused kernel beats pyarrow on
-  the **same work** (parse + aggregate): paired median **0.342** (**≈2.9×**, 50/50
-  wins); vs DuckDB **0.033**. The sealed receipt records **0.362** (49/0/1). **The
-  honest caution stands:** against the Phase-30.1 *aggregation-only* pyarrow lane the
-  kernel is still **~9× slower** (**35.5 → 9.0**), and the **serial** scanner
-  (`--workers 1`) against pyarrow read-inclusive is **1.012** — the parallel split is
-  the margin. Exactness **3/3**; oracle **52/52**.
+  the **same work** (parse + aggregate): paired median **0.362** [0.312, 0.392]
+  (**≈2.8×**, **49/0/1**, receipt-canonical; the commit re-run read **0.342**,
+  50/50); vs DuckDB **0.033**. **The honest caution stands:** against the Phase-30.1
+  *aggregation-only* pyarrow lane the kernel is still **~9× slower** (**35.5 →
+  9.0**), and the **serial** scanner (`--workers 1`) against pyarrow read-inclusive
+  is **0.805** (the commit re-run read 1.012) — the parallel split is the margin.
+  Exactness **3/3**; oracle **52/52**.
 - **30.3 — SHIPPED: the incremental index reaches the ≤10 % bar, scoped and honest.**
   `VOLEINC2` takes the sealed court metric **27.29 % → 7.31 %** (≤10 %), reuse
   **49.6 %** unchanged, incremental == full rebuild **holds** (the physical-only CAS
@@ -333,3 +338,12 @@ recorded-negatives ledger ([roadmap](../project/roadmap.md),
   reading is still 0.50×** (needs a range source through the Parquet decoders —
   recorded). Exactness **4/4**; ADR-0060 untouched.
 - **30.5 — PENDING.** Standing negatives: no implementation, measurement, or claim.
+
+**Framing (recorded plainly).** VOLE is **still not a faster general-purpose
+engine**. What Phase 29–30 add is a set of **court-verified, scoped wins**: against
+pyarrow and DuckDB on **large Arrow/Parquet scans** (30.1 — every large Arrow and
+Parquet cell `< 1.0`), on **the predicate-count question** (28.5/29.1 — resolved
+over DuckDB, median ~0.0033), and on **equal-work CSV** (30.2 — read-inclusive
+parse + aggregate). These do **not** generalize to a broad speed claim: the
+recorded losses stand beside them (the large-fixture pyarrow loss in 29.1, the
+aggregation-only CSV lane in 30.2, and the Parquet reading request in 30.4).

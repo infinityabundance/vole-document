@@ -2,6 +2,25 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.42] — default-feature build, packaging, and test-suite repair
+
+- **Maintenance release.** `0.1.0-alpha.42` is the current release; the
+  Phase-30.2–30.4 mechanisms shipped in [`0.1.0-alpha.41`] (below). This release
+  makes the **default feature set** build, package, and test cleanly:
+  - `src/field/pkgread.rs`: the part-relationships clause referenced
+    `crate::field::opc` unconditionally; it is now gated behind a
+    feature-conditional helper so the default features compile.
+  - `tests/legacy_cfbf_detection.rs`: gains the missing
+    `#![cfg(all(feature = "cfbf", feature = "doc", feature = "xls", feature = "ppt"))]`
+    gate so it does not run where those formats are compiled out.
+  - The release gate gains a **default-feature build/test lane**.
+  - Default-feature tests: **562 pass / 0 fail**.
+- **No capability, exactness, or on-disk format change.** The Phase-30.2–30.4
+  results in [`0.1.0-alpha.41`] (below) are unchanged
+  ([phase-30-results.md](../phases/phase-30-results.md)). **VOLE is still not a
+  faster general-purpose engine**; the Phase-29/30 wins stay scoped (large
+  Arrow/Parquet scans, the predicate-count question, equal-work CSV).
+
 ## [0.1.0-alpha.41] — Phase 30.2–30.4: fused CSV past pyarrow, the ≤10 % incremental index, and coarse reading requests — *unreleased*
 
 - **30.2 — fused CSV kernel past pyarrow (read-inclusive).** Phase 30.1 left the
@@ -19,13 +38,14 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   `read_csv_auto` (**read-inclusive**), while still reporting the Phase-30.1
   aggregation-only number for continuity. Result (in-process steady-state; ADR-0054
   paired per-question ratio, fixed-seed cluster bootstrap B = 20000, MDE, every raw
-  sample retained): fused/pyarrow **read-inclusive** median **0.342** (**~2.9×
-  faster, 50/50 wins**) — the sealed receipt records **0.362** [0.312, 0.392],
-  **49/0/1**; vs DuckDB read-inclusive **0.033** (50/0/0). **Honest caution:** against
-  the Phase-30.1 *aggregation-only* pyarrow lane the kernel is **still ~9× slower**
-  (geomean **35.5 → 9.0**; sealed median **9.710**), and the **serial** scanner
-  (`--workers 1`) against pyarrow read-inclusive is **1.012** (sealed **0.805**) —
-  the **parallel split** is what crosses the line. Cold fused **3.09 ms** vs pyarrow
+  sample retained): fused/pyarrow **read-inclusive** median **0.362** [0.312, 0.392]
+  (**~2.8× faster, 49/0/1** — the receipt is canonical; the shipped commit re-run
+  read **0.342**, 50/50); vs DuckDB read-inclusive **0.033** (50/0/0). **Honest
+  caution:** against the Phase-30.1 *aggregation-only* pyarrow lane the kernel is
+  **still ~9× slower** (geomean **35.5 → 9.0**; sealed median **9.710**), and the
+  **serial** scanner (`--workers 1`) against pyarrow read-inclusive is **0.805**
+  [0.742, 0.914] (the commit re-run read 1.012) — the **parallel split** is what
+  crosses the line. Cold fused **3.09 ms** vs pyarrow
   **76.3 ms** / DuckDB **206.8 ms**. Exactness **3/3** (fixture); oracle agreement
   **52/52** (incl. empty-field NULLs + a grouped question). New court
   `tools/phase30-2-csv-court.sh`; receipt `2026-10-13-phase30-2-csv-8ed3e80b`
