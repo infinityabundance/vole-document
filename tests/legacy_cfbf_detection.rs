@@ -21,6 +21,7 @@
 //! position is now resolved through the root mini stream's FAT chain
 //! (`CfbfModel::mini_chain`), so the first-chunk prefix read succeeds.
 
+#![cfg(all(feature = "cfbf", feature = "doc", feature = "xls", feature = "ppt"))]
 use vole_document::field::document_format::{DocumentFormat, detect_document_format};
 use vole_document::limits::Limits;
 

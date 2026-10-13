@@ -96,7 +96,18 @@ fn is_opc_metadata(name: &[u8]) -> bool {
     };
     s.eq_ignore_ascii_case("[Content_Types].xml")
         || s.eq_ignore_ascii_case("_rels/.rels")
-        || crate::field::opc::part_rels_owner_member(s).is_some()
+        || is_part_rels_member(s)
+}
+
+/// Whether `s` names a `*/_rels/*.rels` part-relationships member (OPC only).
+#[cfg(feature = "opc")]
+fn is_part_rels_member(s: &str) -> bool {
+    crate::field::opc::part_rels_owner_member(s).is_some()
+}
+
+#[cfg(not(feature = "opc"))]
+fn is_part_rels_member(_s: &str) -> bool {
+    false
 }
 
 /// Whether a member is one of the two ODF members the discovery model decodes.
