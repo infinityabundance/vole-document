@@ -10,10 +10,22 @@
 //!
 //! ## What is actually implemented (not a simulation)
 //!
-//! * A **versioned durable index** ([`INDEX_FORMAT_VERSION`]) maps a stable
-//!   observation identity to its verified dependency signature and the content
-//!   id of its verified **derived output**. Outputs are stored
+//! * A **versioned durable index** ([`INDEX_FORMAT_VERSION`], `VOLEINC2`) maps a
+//!   stable observation identity to its verified dependency signature and the
+//!   content id of its verified **derived output**. Outputs are stored
 //!   content-addressed under `<index>/obs/<blake3-hex>.b`.
+//! * The index is **compact**: the Phase-29.3 finding was that the persisted
+//!   per-observation *identity node* (32 B of every 128 B entry) — not the
+//!   dependency edges — dominates the cost, and even removing it leaves a
+//!   96 B/entry entry above the ≤10% bar. So the identity is **not persisted**:
+//!   an observation's enumerated key (`csv:row:12`, …) already encodes its
+//!   position, and the index is a **positional** array in enumeration order,
+//!   keyed exactly as the old identity hash was. The dependency signatures
+//!   (physical + semantic) are **interned** into one sorted dictionary and
+//!   referenced by varints (an unchanged region re-draws one signature), and
+//!   only the 32 B output content id — which addresses a verifiable blob —
+//!   stays full width. An index whose identity **scope** (its format) differs is
+//!   treated as "no prior index", never as a reuse.
 //! * An observation's signature is **explicit**: the ordered physical fragment
 //!   content ids covering its source ranges **plus** the semantic context
 //!   content ids it reads (a DOCX paragraph reads `word/styles.xml` and
@@ -36,8 +48,12 @@
 //! Four namespaces stay distinct and are never conflated: the exact revision
 //! (BLAKE3 of the source, held by the field), the physical fragment content id,
 //! the semantic context content id, and the derived-observation output content
-//! id. The index keys an observation by its own identity and stores those three
-//! ids side by side; reuse never weakens a node's dependency on its exact root.
+//! id. The index resolves an observation to those three ids (physical and
+//! semantic signatures interned, the output id full width) and keys it by the
+//! same stable identity the enumerated key encodes; dropping the *persisted*
+//! identity node from the durable bytes never weakens a node's dependency on its
+//! exact root, because reuse still requires the physical **and** semantic
+//! signature to match and the loaded blob is verified against its content id.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
@@ -48,8 +64,8 @@ use crate::limits::Limits;
 
 /// The durable index format version. A mismatch is treated as "no prior index"
 /// (decline to reuse and rebuild), never as a reuse opportunity.
-pub const INDEX_FORMAT_VERSION: u32 = 1;
-const INDEX_MAGIC: &[u8; 8] = b"VOLEINC1";
+pub const INDEX_FORMAT_VERSION: u32 = 2;
+const INDEX_MAGIC: &[u8; 8] = b"VOLEINC2";
 /// Default bound on observations enumerated for one revision.
 pub const DEFAULT_MAX_OBSERVATIONS: u64 = 200_000;
 /// Modeled bytes per dependency edge, for cross-referencing Phase 28.7.
@@ -165,6 +181,8 @@ pub struct IncrementalReport {
     pub blobs_written: u64,
     pub blob_bytes_written: u64,
     pub index_entries: u64,
+    /// Distinct dependency signatures interned into the index dictionary.
+    pub index_signatures: u64,
     pub index_bytes: u64,
     pub dependency_edges: u64,
     pub obs_blob_total_bytes: u64,
@@ -195,6 +213,7 @@ impl IncrementalReport {
             blobs_written: 0,
             blob_bytes_written: 0,
             index_entries: 0,
+            index_signatures: 0,
             index_bytes: 0,
             dependency_edges: 0,
             obs_blob_total_bytes: 0,
@@ -228,6 +247,7 @@ impl IncrementalReport {
                 "\"blobs_written\":{},",
                 "\"blob_bytes_written\":{},",
                 "\"index_entries\":{},",
+                "\"index_signatures\":{},",
                 "\"index_bytes\":{},",
                 "\"dependency_edges\":{},",
                 "\"obs_blob_total_bytes\":{},",
@@ -255,6 +275,7 @@ impl IncrementalReport {
             self.blobs_written,
             self.blob_bytes_written,
             self.index_entries,
+            self.index_signatures,
             self.index_bytes,
             self.dependency_edges,
             self.obs_blob_total_bytes,
@@ -947,20 +968,73 @@ fn enumerate_xlsx(_source: &[u8], _limits: Limits) -> Enum {
 // durable index + output blob store
 // ---------------------------------------------------------------------------
 
-type Index = BTreeMap<[u8; 32], IndexEntry>;
+/// The durable index, in **enumeration order**. The observation identity is
+/// carried by its position: observation `i` of format `F` is the entry at slot
+/// `i`, exactly as its enumerated key (`F:…:i`) encodes. Persisting a 32-byte
+/// identity node per observation is therefore unnecessary — the Phase-29.3
+/// finding was that this node dominates the cost — while reuse still keys on the
+/// exact same stable identity (position), so correctness is unchanged.
+type Index = Vec<IndexEntry>;
 
 fn index_file(dir: &Path) -> PathBuf {
-    dir.join("index.v1")
+    dir.join("index.v2")
 }
 
-fn read_index(dir: &Path) -> Result<Index> {
+/// The identity scope of an index: observations of another format occupy a
+/// different key space, so a scope mismatch is "no prior index", never reuse.
+fn index_scope(format: &str) -> [u8; 16] {
+    let full = *blake3::hash(format.as_bytes()).as_bytes();
+    let mut out = [0u8; 16];
+    out.copy_from_slice(&full[..16]);
+    out
+}
+
+/// Unsigned LEB128.
+fn put_uvarint(mut v: u64, out: &mut Vec<u8>) {
+    loop {
+        let byte = (v & 0x7f) as u8;
+        v >>= 7;
+        if v == 0 {
+            out.push(byte);
+            return;
+        }
+        out.push(byte | 0x80);
+    }
+}
+
+fn get_uvarint(bytes: &[u8], at: &mut usize) -> Result<u64> {
+    let mut v = 0u64;
+    let mut shift = 0u32;
+    loop {
+        let Some(&byte) = bytes.get(*at) else {
+            return Err(Error::integrity_mismatch(
+                "incremental index varint is truncated",
+            ));
+        };
+        *at += 1;
+        if shift >= 64 {
+            return Err(Error::integrity_mismatch(
+                "incremental index varint overflows u64",
+            ));
+        }
+        v |= u64::from(byte & 0x7f) << shift;
+        if byte & 0x80 == 0 {
+            return Ok(v);
+        }
+        shift += 7;
+    }
+}
+
+fn read_index(dir: &Path, format: &str) -> Result<Index> {
     let path = index_file(dir);
     let bytes = match std::fs::read(&path) {
         Ok(b) => b,
         Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Index::new()),
         Err(e) => return Err(Error::io(format!("reading incremental index: {e}"))),
     };
-    if bytes.len() < 20 || &bytes[0..8] != INDEX_MAGIC {
+    // magic (8) + version (4) + scope (16) + count (8) + sig_count (8) = 44.
+    const HEADER: usize = 44;
+    if bytes.len() < HEADER || &bytes[0..8] != INDEX_MAGIC {
         return Err(Error::integrity_mismatch(
             "incremental index has a bad magic",
         ));
@@ -970,50 +1044,93 @@ fn read_index(dir: &Path) -> Result<Index> {
         // A different format version is "no prior index": decline to reuse.
         return Ok(Index::new());
     }
+    if bytes[12..28] != index_scope(format) {
+        // A different identity scope is "no prior index": decline to reuse.
+        return Ok(Index::new());
+    }
     let count = u64::from_le_bytes([
-        bytes[12], bytes[13], bytes[14], bytes[15], bytes[16], bytes[17], bytes[18], bytes[19],
+        bytes[28], bytes[29], bytes[30], bytes[31], bytes[32], bytes[33], bytes[34], bytes[35],
     ]);
-    let mut out = Index::new();
-    let mut at = 20usize;
+    let sig_count = u64::from_le_bytes([
+        bytes[36], bytes[37], bytes[38], bytes[39], bytes[40], bytes[41], bytes[42], bytes[43],
+    ]);
+    let mut at = HEADER;
+    let dict_end = (sig_count as usize)
+        .checked_mul(32)
+        .and_then(|n| at.checked_add(n))
+        .filter(|end| *end <= bytes.len())
+        .ok_or_else(|| Error::integrity_mismatch("incremental index is truncated"))?;
+    let mut dict: Vec<[u8; 32]> = Vec::with_capacity(sig_count as usize);
+    while at < dict_end {
+        let mut v = [0u8; 32];
+        v.copy_from_slice(&bytes[at..at + 32]);
+        dict.push(v);
+        at += 32;
+    }
+    // Each entry is at least two 1-byte varints + a 32 B output id, so the
+    // file size bounds how many entries can exist; never trust the declared
+    // count for an upfront allocation.
+    let max_entries = bytes.len().saturating_sub(HEADER) / 34;
+    let mut out = Index::with_capacity((count as usize).min(max_entries));
     for _ in 0..count {
-        if at + 128 > bytes.len() {
+        let pr = get_uvarint(&bytes, &mut at)?;
+        let sr = get_uvarint(&bytes, &mut at)?;
+        let phys = *dict
+            .get(pr as usize)
+            .ok_or_else(|| Error::integrity_mismatch("incremental index phys ref out of range"))?;
+        let sem = *dict
+            .get(sr as usize)
+            .ok_or_else(|| Error::integrity_mismatch("incremental index sem ref out of range"))?;
+        if at + 32 > bytes.len() {
             return Err(Error::integrity_mismatch("incremental index is truncated"));
         }
-        let mut key = [0u8; 32];
-        key.copy_from_slice(&bytes[at..at + 32]);
-        let mut phys = [0u8; 32];
-        phys.copy_from_slice(&bytes[at + 32..at + 64]);
-        let mut sem = [0u8; 32];
-        sem.copy_from_slice(&bytes[at + 64..at + 96]);
         let mut oid = [0u8; 32];
-        oid.copy_from_slice(&bytes[at + 96..at + 128]);
-        out.insert(
-            key,
-            IndexEntry {
-                phys,
-                sem,
-                out: oid,
-            },
-        );
-        at += 128;
+        oid.copy_from_slice(&bytes[at..at + 32]);
+        at += 32;
+        out.push(IndexEntry {
+            phys,
+            sem,
+            out: oid,
+        });
     }
     Ok(out)
 }
 
-fn write_index(dir: &Path, index: &Index) -> Result<u64> {
-    let mut buf = Vec::with_capacity(20 + index.len() * 128);
+/// Persist the index. Dependency signatures (physical + semantic) are **interned**
+/// into one sorted value dictionary and referenced by varints; the output content
+/// id stays a full 32 bytes (it addresses a blob and is verified on load).
+/// Returns `(bytes_written, distinct_signatures)`.
+fn write_index(dir: &Path, index: &[IndexEntry], format: &str) -> Result<(u64, u64)> {
+    let mut dict: BTreeMap<[u8; 32], u64> = BTreeMap::new();
+    for e in index {
+        let n = dict.len() as u64;
+        dict.entry(e.phys).or_insert(n);
+        let n = dict.len() as u64;
+        dict.entry(e.sem).or_insert(n);
+    }
+    let sig_count = dict.len() as u64;
+    let mut values: Vec<[u8; 32]> = vec![[0u8; 32]; dict.len()];
+    for (v, idx) in &dict {
+        values[*idx as usize] = *v;
+    }
+
+    let mut buf = Vec::with_capacity(44 + values.len() * 32 + index.len() * 40);
     buf.extend_from_slice(INDEX_MAGIC);
     buf.extend_from_slice(&INDEX_FORMAT_VERSION.to_le_bytes());
+    buf.extend_from_slice(&index_scope(format));
     buf.extend_from_slice(&(index.len() as u64).to_le_bytes());
-    for (k, e) in index {
-        buf.extend_from_slice(k);
-        buf.extend_from_slice(&e.phys);
-        buf.extend_from_slice(&e.sem);
+    buf.extend_from_slice(&sig_count.to_le_bytes());
+    for v in &values {
+        buf.extend_from_slice(v);
+    }
+    for e in index {
+        put_uvarint(dict[&e.phys], &mut buf);
+        put_uvarint(dict[&e.sem], &mut buf);
         buf.extend_from_slice(&e.out);
     }
     let len = buf.len() as u64;
     super::write_atomic(&index_file(dir), &buf)?;
-    Ok(len)
+    Ok((len, sig_count))
 }
 
 fn blob_path(dir: &Path, id: &[u8; 32]) -> PathBuf {
@@ -1109,7 +1226,7 @@ pub fn incremental_observe(
 
     std::fs::create_dir_all(index_dir.join("obs"))
         .map_err(|e| Error::io(format!("creating incremental index dir: {e}")))?;
-    let prior = read_index(index_dir)?;
+    let prior = read_index(index_dir, &format)?;
     let prior_entries = prior.len() as u64;
 
     let mut index: Index = Index::new();
@@ -1126,14 +1243,18 @@ pub fn incremental_observe(
     let mut mismatches = 0u64;
     let mut answers: Vec<([u8; 32], [u8; 32])> = Vec::with_capacity(obs.len());
 
-    for o in &obs {
+    for (ord, o) in obs.iter().enumerate() {
         dependency_edges = dependency_edges
             .saturating_add(o.phys.len() as u64)
             .saturating_add(o.sem.len() as u64);
         let key_hash = id_of(o.key.as_bytes());
         let phys = digest_ids(&o.phys);
         let sem = digest_ids(&o.sem);
-        let (chosen, was_reused): (Vec<u8>, bool) = match (lane, prior.get(&key_hash)) {
+        // Identity is the enumerated slot: `prior[ord]` is exactly the entry the
+        // old key-hash index stored under `id_of(key)`, since every key is
+        // `"<format>:<kind>:<ord>"` in enumeration order.
+        let prior_entry = prior.get(ord);
+        let (chosen, was_reused): (Vec<u8>, bool) = match (lane, prior_entry) {
             (Lane::Full, _) => (o.out.clone(), false),
             (Lane::Cas, Some(p)) if p.phys == phys => match load_blob(index_dir, &p.out) {
                 Some(b) => (b, true),
@@ -1147,7 +1268,7 @@ pub fn incremental_observe(
             }
             _ => (o.out.clone(), false),
         };
-        match prior.get(&key_hash) {
+        match prior_entry {
             None => new_obs += 1,
             Some(p) => {
                 if !was_reused {
@@ -1177,18 +1298,15 @@ pub fn incremental_observe(
             blobs_written += 1;
             blob_bytes_written = blob_bytes_written.saturating_add(written);
         }
-        index.insert(
-            key_hash,
-            IndexEntry {
-                phys,
-                sem,
-                out: out_id,
-            },
-        );
+        index.push(IndexEntry {
+            phys,
+            sem,
+            out: out_id,
+        });
         answers.push((key_hash, out_id));
     }
 
-    let index_bytes = write_index(index_dir, &index)?;
+    let (index_bytes, index_signatures) = write_index(index_dir, &index, &format)?;
     answers.sort_unstable();
     let mut ah = blake3::Hasher::new();
     for (k, o) in &answers {
@@ -1217,6 +1335,7 @@ pub fn incremental_observe(
         blobs_written,
         blob_bytes_written,
         index_entries: index.len() as u64,
+        index_signatures,
         index_bytes,
         dependency_edges,
         obs_blob_total_bytes,
@@ -1228,9 +1347,10 @@ pub fn incremental_observe(
     })
 }
 
-/// The modeled dependency-graph index cost (edges at [`EDGE_MODEL_BYTES`] plus
-/// the per-observation identity overhead the index actually persists), for
-/// cross-referencing the Phase-28.7 model.
+/// The modeled dependency-graph index cost (edges at [`EDGE_MODEL_BYTES`] plus a
+/// 64 B/entry per-observation node), for cross-referencing the Phase-28.7 model
+/// that *persisted* an identity node per observation — the cost the shipped
+/// `VOLEINC2` index does not pay.
 pub fn modeled_graph_index_bytes(index_entries: u64, dependency_edges: u64) -> u64 {
     index_entries
         .saturating_mul(64)
@@ -1408,21 +1528,57 @@ mod tests {
     }
 
     #[test]
-    fn index_roundtrips_and_version_mismatch_resets() {
+    fn index_roundtrips_compactly_and_scope_mismatch_resets() {
         let dir = temp_dir("idx");
         std::fs::create_dir_all(dir.join("obs")).unwrap();
-        let mut index: Index = Index::new();
-        index.insert(
-            [1u8; 32],
+        let shared = [7u8; 32];
+        let index: Index = vec![
             IndexEntry {
-                phys: [2u8; 32],
+                phys: shared,
                 sem: [3u8; 32],
                 out: [4u8; 32],
             },
+            IndexEntry {
+                phys: shared,
+                sem: [3u8; 32],
+                out: [5u8; 32],
+            },
+        ];
+        let (bytes, sigs) = write_index(&dir, &index, "csv").unwrap();
+        // One distinct physical + one distinct semantic signature are interned
+        // once, no matter how many observations share them.
+        assert_eq!(sigs, 2);
+        assert!(
+            bytes < 2 * 96,
+            "a shared signature must be interned, not repeated ({bytes} B)"
         );
-        write_index(&dir, &index).unwrap();
-        let back = read_index(&dir).unwrap();
-        assert_eq!(back.len(), 1);
-        assert_eq!(back.get(&[1u8; 32]).unwrap().out, [4u8; 32]);
+        let back = read_index(&dir, "csv").unwrap();
+        assert_eq!(back.len(), 2);
+        // Identical signatures with distinct outputs: interning must never merge
+        // them (the output content id stays full width).
+        assert_eq!(back[0].out, [4u8; 32]);
+        assert_eq!(back[1].out, [5u8; 32]);
+        assert_eq!(back[0].phys, shared);
+        assert_eq!(back[1].phys, shared);
+        // A different identity scope is "no prior index" (never a wrong reuse).
+        assert!(read_index(&dir, "json").unwrap().is_empty());
+    }
+
+    #[test]
+    fn index_version_mismatch_resets() {
+        let dir = temp_dir("idxver");
+        std::fs::create_dir_all(dir.join("obs")).unwrap();
+        let index: Index = vec![IndexEntry {
+            phys: [1u8; 32],
+            sem: [2u8; 32],
+            out: [3u8; 32],
+        }];
+        write_index(&dir, &index, "csv").unwrap();
+        // A future version is "no prior index": decline to reuse, never reuse.
+        let p = index_file(&dir);
+        let mut b = std::fs::read(&p).unwrap();
+        b[8..12].copy_from_slice(&999u32.to_le_bytes());
+        std::fs::write(&p, &b).unwrap();
+        assert!(read_index(&dir, "csv").unwrap().is_empty());
     }
 }

@@ -1,0 +1,25 @@
+# Phase 30.3 receipt metadata
+generated_utc: 2026-10-13T07:05:01Z
+git_commit: f3765c2b4b9265f9fccf891541f5824cadfeeb21
+git_branch: phase30
+git_dirty: yes
+root: /work
+rustc: rustc 1.99.0 (b940084d7 2026-09-28)
+cargo: cargo 1.99.0 (5f94df478 2026-08-27)
+perl: This is perl 5, version 36, subversion 0 (v5.36.0) built for x86_64-linux-gnu-thread-multi
+arch: x86_64
+nproc: 16
+cargo_lock_sha256: 11edd0eba51f4b8b7702751b5d13a305424c0d834b47fd456f8c5c1cf35c5de1
+binary: target/debug/vole-document
+binary_sha256: 23de0f38017acd1da7530961664745c7c167cc5f6581678807338b54b723811d
+build_args: cargo build --locked --all-features -j 1
+build_env: CARGO_PROFILE_DEV_DEBUG=unset (symbols-only; debug info does not affect semantics)
+service: dev (mem_limit == memswap_limit == 8g, pids_limit 4096)
+substrate: field-build --profile runtime --packed
+index_format: VOLEINC2 (versioned; 44 B header + interned signatures + varint refs + 32 B output id)
+index_entry_model: positional slot (identity = the enumerated key's ordinal, NOT persisted) + interned physical signature ref (varint) + interned semantic signature ref (varint) + output content id 32 B
+index_identity_scope: BLAKE3(format)[..16] in the header; a scope/version mismatch is 'no prior index', never reuse
+hash: BLAKE3-256 for observation/fragment/output ids (the store's own hash)
+identity_separation (ADR-0060): exact revision SHA-256, physical fragment id, semantic context id, and derived-observation output id stay DISTINCT; only the *persisted* identity node is dropped
+historical_control: evidence/campaigns/2026-10-12-phase29-3-incremental-879e6334 (index VOLEINC1, 27.29%)
+phase28_7_historical_control: evidence/campaigns/2026-10-12-phase28-7-revision-reuse-b06a2f76

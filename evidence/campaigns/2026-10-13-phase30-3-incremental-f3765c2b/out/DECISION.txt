@@ -1,0 +1,22 @@
+PHASE 30.3 DECISION — incremental observation (a real mechanism)
+
+reuse (rev>1, incremental lane): 30157 of 60771 observations (49.6%)
+semantic-only invalidations: 1066
+
+index cost (the sealed court metric: controlling/last family's index over
+  the sum of ALL families' source bytes; the Phase-28.7 gate's <=10% bar)
+  index bytes: 199622  of  2730316 source bytes = 7.31%  [<=10% OK]
+  interned dependency signatures (last revision): 52
+  honest whole-set index (sum over families): 677716 = 24.82% [>10% FAIL]
+control evidence/campaigns/2026-10-12-phase29-3-incremental-879e6334/out/receipt.json: index 27.29% -> 7.31% (delta -19.98 pp); reuse 49.6% -> 49.6% (delta +0.0 pp)
+persistent bytes (index + content-addressed outputs): 582031
+correctness (incremental == full rebuild on every revision): HOLDS
+bytes recomputed: full=2540635  cas=1337213  incremental=1408687
+physical-only CAS diverges on a style/shared-string case: YES (semantic edges are load-bearing)
+
+VERDICT: RESOLVED (positive, scoped)
+SCOPE: the reuse win is on LOCALIZED edits; a whole-document redraft
+(the real DOCX draft chain) reuses ~0 by construction.
+NOTE: a per-observation output content id is 32 B; a CSV row averages
+~30 B, so the CSV family's own index/src ratio stays >10% by construction
+(recorded honestly). The sealed metric is dominated by the last family.
