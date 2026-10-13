@@ -39,7 +39,7 @@
 //! the index narrows every request.
 
 use std::cell::{Cell, RefCell};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::{Read, Seek, SeekFrom};
 use std::os::unix::fs::FileExt;
@@ -973,6 +973,10 @@ pub struct CoarseSource {
     source_len: u64,
     units: Vec<CoarseUnit>,
     loaded: RefCell<Vec<Option<Vec<u8>>>>,
+    /// Unit ordinals served as *units* (via `serve_range`/`prefetch`). Kept apart
+    /// from `loaded` so the dependency map records the units a request needs, not
+    /// the units a fine-grained structural read merely brushed.
+    touched: RefCell<BTreeSet<usize>>,
     expand: bool,
     reads: Cell<u64>,
     bytes_read: Cell<u64>,
@@ -992,6 +996,7 @@ impl CoarseSource {
             source_len: index.source_len,
             units: index.units.clone(),
             loaded: RefCell::new(vec![None; n]),
+            touched: RefCell::new(BTreeSet::new()),
             expand,
             reads: Cell::new(0),
             bytes_read: Cell::new(0),
@@ -1016,15 +1021,9 @@ impl CoarseSource {
         self.misses.get()
     }
 
-    /// Unit ordinals actually fetched.
+    /// Unit ordinals actually served as units (fetched by `serve_range`).
     pub fn touched_units(&self) -> Vec<usize> {
-        self.loaded
-            .borrow()
-            .iter()
-            .enumerate()
-            .filter(|(_, v)| v.is_some())
-            .map(|(i, _)| i)
-            .collect()
+        self.touched.borrow().iter().copied().collect()
     }
 
     /// The covered byte span (for the receipt).
@@ -1062,11 +1061,55 @@ impl CoarseSource {
         self.bytes_read
             .set(self.bytes_read.get() + buf.len() as u64);
         self.reads.set(self.reads.get() + 1);
+        self.touched.borrow_mut().insert(i);
         self.covered_lo.set(self.covered_lo.get().min(u.offset));
         self.covered_hi
             .set(self.covered_hi.get().max(u.offset + u64::from(u.len)));
         loaded[i] = Some(buf);
         Ok(())
+    }
+
+    /// A fine-grained exact read of `[offset, offset + len)` with a real `pread`.
+    ///
+    /// Unlike [`Self::fetch`] this never round-trips through a whole unit and is
+    /// never subject to the plan (`expand`) — it is a genuine read that is always
+    /// charged. It is the Phase-30.4 hook the unit-addressed package reader uses
+    /// to consult the ZIP central directory and member local headers without
+    /// materializing the whole source.
+    fn read_exact_range(&self, offset: u64, len: u64, limits: Limits) -> Result<Vec<u8>> {
+        let end = offset
+            .checked_add(len)
+            .ok_or_else(|| Error::usage("fine-grained read range overflows"))?;
+        if end > self.source_len {
+            return Err(Error::usage(format!(
+                "fine-grained read {offset}..{end} exceeds source length {}",
+                self.source_len
+            )));
+        }
+        if len > limits.max_input_bytes {
+            return Err(Error::resource_limit(format!(
+                "fine-grained read of {len} bytes exceeds max_input_bytes {}",
+                limits.max_input_bytes
+            )));
+        }
+        let mut buf = vec![0u8; len as usize];
+        if len > 0 {
+            self.file
+                .read_exact_at(&mut buf, self.object_base + offset)
+                .map_err(|e| Error::io(format!("fine-grained pread failed: {e}")))?;
+        }
+        self.bytes_read
+            .set(self.bytes_read.get() + buf.len() as u64);
+        self.reads.set(self.reads.get() + 1);
+        if len > 0 {
+            // A fine-grained read is *not* a unit fetch: it must not inflate the
+            // dependency map (the unit plan records the units served as units via
+            // `serve_range`). It is charged as real bytes and widens the covered
+            // span, but it never marks a whole unit "touched".
+            self.covered_lo.set(self.covered_lo.get().min(offset));
+            self.covered_hi.set(self.covered_hi.get().max(end));
+        }
+        Ok(buf)
     }
 
     /// Prefetch a planned set of units so the closure is exactly that set.
@@ -1154,6 +1197,22 @@ impl SourceServer for CoarseSource {
         self.covered_lo.set(0);
         self.covered_hi.set(self.source_len);
         Ok(buf)
+    }
+
+    fn read_exact(&self, offset: u64, len: u64, limits: Limits) -> Result<Option<Vec<u8>>> {
+        Ok(Some(self.read_exact_range(offset, len, limits)?))
+    }
+
+    fn exact_len(&self) -> Option<u64> {
+        Some(self.source_len)
+    }
+
+    fn zip_directory(&self, limits: Limits) -> Result<Option<(u64, Vec<u8>)>> {
+        let Some(u) = self.units.iter().find(|u| u.kind == UnitKind::ZipDirectory) else {
+            return Ok(None);
+        };
+        let bytes = self.read_exact_range(u.offset, u64::from(u.len), limits)?;
+        Ok(Some((u.offset, bytes)))
     }
 }
 

@@ -1,0 +1,27 @@
+PHASE 30.4 DECISION — unit-addressed coarse reading (real bytes read)
+
+Phase 29.2 (historical control, same corpus bytes) narrowed the natural
+reading request in 1/4 formats: DOCX/ODT/Parquet materialized the whole
+exact DocumentExact source, so their coarse units were inert.
+
+Phase 30.4 serves the reading request from the coarse member spans + the
+ZIP central directory (or the column chunk + footer), per format:
+  pdf     span: control 3236824 -> units 7091, closure 37552 (dir 30461)
+  pdf     reading: control 3245913 -> units 7087, closure 46545 (dir 30461); page-SQLite 24692 (WIN)
+  docx    span: control 3285766 -> units 655411, closure 655629 (dir 218)
+  docx    reading: control 3290209 -> units 8422, closure 13003 (dir 218); page-SQLite 20596 (WIN)
+  odt     span: control 3285310 -> units 655407, closure 655625 (dir 218)
+  odt     reading: control 3289667 -> units 7961, closure 12456 (dir 218); page-SQLite 20596 (WIN)
+  parquet span: control 4195784 -> units 1550025, closure 1550226 (dir 201)
+  parquet reading: control 4196116 -> units 8390140, closure 8390673 (dir 201); page-SQLite 4685956 (LOSS)
+
+Reading requests narrow: 3/4 formats (29.2 control: 1/4).
+Reading closure beats page-SQLite: 2/4 measured.
+
+Remaining loss: parquet reading is still 2.0x its control. The ParquetCell
+projection slices the column chunk out of a whole-source buffer
+(parquet_source() materializes the DocumentExact root) and ParquetModel reads
+the whole source; unit-addressing the cell needs a range source threaded
+through the Parquet value decoders (a separate subphase).
+
+Exactness held: 4/4 formats materialize --exact == source.

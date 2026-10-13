@@ -1,0 +1,1 @@
+{"reads": 8, "distinct_ranges": 2, "bytes": 24692, "pages": 6, "page_size": 4096, "regions": [[0, 20480], [45056, 49152]]}

@@ -1,0 +1,2 @@
+request	outcome	units_read	preads	unit_bytes	closure_bytes	manifest_bytes	index_bytes	seed_bytes	dir_bytes	answer_bytes	matches_full	reason
+--parquet-cell 0:0 --kind text	planned	0	2	8390140	8390673	0	63	269	201	1	1	
