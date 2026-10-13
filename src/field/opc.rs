@@ -92,7 +92,7 @@ pub fn build_opc_model(source: &[u8], limits: Limits) -> Result<Vec<u8>> {
 
 /// For a member name `<prefix>/_rels/<file>.rels`, the owning member name
 /// `<prefix>/<file>`; `None` when the member is not a part-relationships part.
-fn part_rels_owner_member(name: &str) -> Option<String> {
+pub(crate) fn part_rels_owner_member(name: &str) -> Option<String> {
     let marker = "_rels/";
     let idx = name.rfind(marker)?;
     if idx != 0 && name.as_bytes()[idx - 1] != b'/' {

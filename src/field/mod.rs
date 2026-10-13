@@ -22,12 +22,12 @@ pub mod document_format;
 pub mod edit;
 pub mod explain;
 pub mod external;
-pub mod index;
 /// Phase 29.3: the revision-aware incremental observation mechanism (a bounded,
 /// versioned cross-revision reuse layer over derived observations with explicit
 /// physical **and** semantic dependency edges). Observe-only; never in the
 /// exactness path.
 pub mod incremental;
+pub mod index;
 /// Phase 16.1: the single shipped DEFLATE inflate seam (`zlib-rs`). One backend
 /// serves both PDF zlib (RFC 1950) and ZIP raw DEFLATE (RFC 1951) members.
 pub(crate) mod inflate;
@@ -40,6 +40,10 @@ pub mod observe;
 #[cfg(feature = "opc")]
 pub mod opc;
 pub mod partial;
+/// Phase 30.4: unit-addressed package/file model construction (the coarse lane's
+/// fine-grained range reads), so a DOCX/ODT reading request need not materialize
+/// the whole exact source.
+pub(crate) mod pkgread;
 pub mod plan;
 pub(crate) mod prof;
 pub mod promote;

@@ -188,10 +188,11 @@ const USAGE_FIELD: &str = "\
          shipped observe text path in the same process for attribution)
     vole-document fused-scan --store DIR --field HEX --format FORMAT --column SPEC
         --pred PRED --op OP [--kind int|float] [--group-cap K] [--warmup W]
-        [--repeat R] [--also-current] [--entropyfs | --packed]
+        [--repeat R] [--workers N] [--also-current] [--entropyfs | --packed]
         (Phase-29.1 generalized fused kernel: FORMAT is arrow|parquet|csv|fixedwidth,
          PRED is any|gt:K|eq:K|range:LO:HI, OP is count|sum|min|max|avg|grouped;
-         validity-aware, typed-declining; reports per-iteration microseconds as JSON)
+         validity-aware, typed-declining; reports per-iteration microseconds as JSON;
+         --workers N parallelizes the csv scan, absent or 1 is serial, 0 is auto)
     vole-document explain --store DIR --field HEX <selector> --kind KIND [--analyze] [--entropyfs | --packed]
     vole-document preview --store DIR --field HEX --page N [--json] [--entropyfs | --packed]
     vole-document materialize --store DIR --field HEX --exact --output FILE [--entropyfs | --packed]
@@ -6126,7 +6127,7 @@ fn cmd_arrow_fused(args: &[String], limits: Limits) -> Result<()> {
 
 /// `fused-scan --store DIR --field HEX --format FORMAT --column SPEC --pred PRED`
 /// `--op OP [--kind int|float] [--group-cap K] [--warmup W] [--repeat R]`
-/// `[--also-current] [--packed|--entropyfs]`.
+/// `[--workers N] [--also-current] [--packed|--entropyfs]`.
 ///
 /// The Phase-29.1 **generalized fused kernel** decision instrument. It reads the
 /// exact substrate bytes from the VOLE field, parses the addressed format's model
@@ -6215,6 +6216,7 @@ fn cmd_fused_scan(args: &[String], limits: Limits) -> Result<()> {
     let mut entropyfs = false;
     let mut warmup: usize = 3;
     let mut repeat: usize = 1;
+    let mut workers: Option<u32> = None;
     let mut also_current = false;
     let parse_usize = |v: String, flag: &str| -> Result<usize> {
         v.parse::<usize>()
@@ -6256,6 +6258,15 @@ fn cmd_fused_scan(args: &[String], limits: Limits) -> Result<()> {
                     field_arg_value(args, &mut i, "--repeat", inline)?,
                     "--repeat",
                 )?
+            }
+            "--workers" => {
+                let v = field_arg_value(args, &mut i, "--workers", inline)?;
+                let n = v.parse::<u32>().map_err(|_| {
+                    Error::usage(format!(
+                        "--workers value {v:?} is not a non-negative integer"
+                    ))
+                })?;
+                workers = Some(n)
             }
             "--also-current" => {
                 also_current = true;
@@ -6315,6 +6326,10 @@ fn cmd_fused_scan(args: &[String], limits: Limits) -> Result<()> {
     }
     let repeat = repeat.max(1);
     let plan = FusedPlan::new(fpred, fop, group_cap);
+    // An optional bounded worker pool for the delimited fused scan (`--workers`);
+    // `None`/`1` is the serial scanner, so the measured path is exactly the shipped
+    // one unless the caller asks for more.
+    let pool = build_worker_pool(workers)?;
 
     let mut session = DocumentFieldSession::open(
         &store_dir,
@@ -6362,12 +6377,13 @@ fn cmd_fused_scan(args: &[String], limits: Limits) -> Result<()> {
                 &plan,
                 limits,
             ),
-            Fmt::Csv => csv::fused_scan(
+            Fmt::Csv => csv::fused_scan_with_pool(
                 source,
                 &column,
                 explicit_kind.expect("csv kind"),
                 &plan,
                 limits,
+                pool.as_ref(),
             ),
             Fmt::FixedWidth => fixedwidth::fused_scan(
                 source,

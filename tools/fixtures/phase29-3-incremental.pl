@@ -345,10 +345,13 @@ sub read_tsv {
 }
 
 sub decide {
-    my ($raw, $out, $campaign, $short) = @_;
+    my ($raw, $out, $campaign, $short, $label, $control) = @_;
+    $label //= '29.3';
     make_path($out);
     my @man = read_tsv("$raw/manifest.tsv");
     my @ex  = read_tsv("$raw/exactness.tsv");
+    my $src_total = 0;
+    $src_total += $_->[5] for @man;
 
     # exactness by (family, rev)
     my %exact;
@@ -375,8 +378,8 @@ sub decide {
     my $cas_wrong_on_semantic = 0;
     my $incr_total = { reused => 0, recomputed => 0, n_obs => 0, invalidated => 0,
                        sem_only => 0, bytes_recomp => 0, bytes_reused => 0,
-                       latency => 0, edges => 0,
-                       index_bytes => 0, persistent => 0 };
+                       latency => 0, edges => 0, sigs => 0,
+                       index_bytes => 0, index_total => 0, persistent => 0 };
     my $full_total = { recomputed => 0, n_obs => 0, bytes_recomp => 0, latency => 0 };
     my $cas_total  = { reused => 0, recomputed => 0, n_obs => 0, bytes_recomp => 0,
                        bytes_reused => 0, latency => 0, index_bytes => 0, persistent => 0 };
@@ -408,6 +411,7 @@ sub decide {
                     $incr_total->{latency} += $j->{lane_us};
                     $incr_total->{edges} += $j->{dependency_edges};
                     $incr_total->{index_bytes} = $j->{index_bytes};
+                    $incr_total->{sigs} = $j->{index_signatures};
                     $incr_total->{persistent} = $j->{persistent_bytes};
                 } elsif ($lane eq 'full') {
                     $full_total->{n_obs} += $j->{n_obs};
@@ -455,26 +459,40 @@ sub decide {
             $sem_only    += $j->{semantic_only_invalidations};
         }
         my $reuse_pct = $incr_nobs > 0 ? 100.0 * $incr_reused / $incr_nobs : 0.0;
+        # Per-family index cost at the family's LAST revision; the family's own
+        # source bytes are the denominator. `$incr_total->{index_bytes}` above is
+        # the controlling-family (last family) figure the 29.3 court sealed; the
+        # running sum is the honest whole-set figure.
+        my $fam_src = 0;
+        $fam_src += $_->[5] for grep { $_->[0] eq $fam } @man;
+        my $last = $revs[-1][0];
+        my $fam_index = ($by{incremental}{$last}) ? $by{incremental}{$last}{index_bytes} : 0;
+        my $fam_sigs = ($by{incremental}{$last}) ? $by{incremental}{$last}{index_signatures} : 0;
+        $incr_total->{index_total} += $fam_index;
+        my $fam_index_pct = $fam_src > 0 ? 100.0 * $fam_index / $fam_src : 0.0;
         push @report, {
             family => $fam, fmt => $fmt, change => $change, n_revs => scalar(@revs),
             reuse_pct => $reuse_pct, incr_reused => $incr_reused,
             incr_nobs => $incr_nobs, sem_only => $sem_only,
             correct => $fam_ok, cas_diverges => $cas_diverges,
+            index_bytes => $fam_index, index_signatures => $fam_sigs,
+            src_bytes => $fam_src, index_pct => $fam_index_pct,
         };
     }
 
     # ---- write SUMMARY.md ----
     open my $sm, '>', "$out/SUMMARY.md" or die $!;
-    print $sm "# Phase 29.3 — incremental observation\n\n";
+    print $sm "# Phase $label — incremental observation\n\n";
     print $sm "campaign: $campaign\n\n";
-    print $sm "| family | fmt | change | revs | reused/nobs (rev>1) | reuse% | semantic-only invalid | incr==full | cas diverges |\n";
-    print $sm "|---|---|---|---|---|---|---|---|---|\n";
+    print $sm "| family | fmt | change | revs | reused/nobs (rev>1) | reuse% | semantic-only invalid | incr==full | cas diverges | index B | sigs | index/src % |\n";
+    print $sm "|---|---|---|---|---|---|---|---|---|---|---|---|\n";
     for my $r (@report) {
-        printf $sm "| %s | %s | %s | %d | %d/%d | %.1f%% | %d | %s | %s |\n",
+        printf $sm "| %s | %s | %s | %d | %d/%d | %.1f%% | %d | %s | %s | %d | %d | %.2f%% |\n",
             $r->{family}, $r->{fmt}, $r->{change}, $r->{n_revs},
             $r->{incr_reused}, $r->{incr_nobs}, $r->{reuse_pct},
             $r->{sem_only}, $r->{correct} ? "yes" : "NO",
-            $r->{cas_diverges} ? "yes" : "no";
+            $r->{cas_diverges} ? "yes" : "no",
+            $r->{index_bytes}, $r->{index_signatures}, $r->{index_pct};
     }
     print $sm "\n## Totals\n\n";
     print $sm "| lane | obs | reused | recomputed | bytes recomputed | bytes reused | latency us | index B | persistent B |\n";
@@ -491,6 +509,9 @@ sub decide {
         $incr_total->{bytes_recomp}, $incr_total->{bytes_reused}, $incr_total->{latency},
         $incr_total->{index_bytes}, $incr_total->{persistent};
     print $sm "\n- dependency edges (incremental, last revision): $incr_total->{edges}\n";
+    print $sm "- index signatures interned (incremental, last revision): $incr_total->{sigs}\n";
+    print $sm "- index bytes (controlling family, last revision): $incr_total->{index_bytes}\n";
+    print $sm "- index bytes (sum over families, last revision): $incr_total->{index_total}\n";
     print $sm "- exactness (materialize --exact == source, fresh process): "
         . ($exact_ok ? "ALL OK" : "FAILED") . "\n";
     print $sm "- correctness (incremental answer_digest == full rebuild): "
@@ -502,12 +523,14 @@ sub decide {
     # ---- write DECISION.txt ----
     my $reuse_overall = $incr_total->{n_obs} > 0
         ? 100.0 * $incr_total->{reused} / $incr_total->{n_obs} : 0.0;
-    # index cost as a fraction of the full-rebuild raw store: use index bytes vs
-    # the sum of source bytes (from the manifest) as a stated, reproducible ratio.
-    my $src_total = 0;
-    $src_total += $_->[5] for @man;
+    # The sealed Phase-29.3/28.7 court metric: the index bytes at the
+    # controlling (last) family's last revision over the sum of ALL families'
+    # source bytes. Kept byte-for-byte so the before/after is comparable.
     my $index_frac = $src_total > 0
         ? 100.0 * $incr_total->{index_bytes} / $src_total : 0.0;
+    # The honest whole-set figure: every family's last-revision index summed.
+    my $index_total_frac = $src_total > 0
+        ? 100.0 * $incr_total->{index_total} / $src_total : 0.0;
     my $verdict;
     my $index_ok = $index_frac <= 10.0;
     if (!$correct_ok) {
@@ -519,15 +542,33 @@ sub decide {
     } else {
         $verdict = "NEGATIVE (semantic edges not load-bearing here)";
     }
+
+    # optional control comparison (a prior sealed receipt.json)
+    my $control_txt = '';
+    if ($control && -e $control) {
+        my $c = jread($control);
+        my $ci = defined $c->{index_fraction_pct} ? $c->{index_fraction_pct} : 0;
+        my $cr = defined $c->{reuse_pct_rev_gt_1} ? $c->{reuse_pct_rev_gt_1} : 0;
+        $control_txt = sprintf(
+            "control %s: index %.2f%% -> %.2f%% (delta %+.2f pp); reuse %.1f%% -> %.1f%% (delta %+.1f pp)\n",
+            $control, $ci, $index_frac, $index_frac - $ci, $cr, $reuse_overall, $reuse_overall - $cr);
+    }
+
     open my $dc, '>', "$out/DECISION.txt" or die $!;
-    print $dc "PHASE 29.3 DECISION — incremental observation (a real mechanism)\n\n";
+    print $dc "PHASE $label DECISION — incremental observation (a real mechanism)\n\n";
     printf $dc "reuse (rev>1, incremental lane): %d of %d observations (%.1f%%)\n",
         $incr_total->{reused}, $incr_total->{n_obs}, $reuse_overall;
     printf $dc "semantic-only invalidations: %d\n", $incr_total->{sem_only};
-    printf $dc "index bytes: %d (%.2f%% of %d source bytes; the Phase-28.7 gate's\n",
-        $incr_total->{index_bytes}, $index_frac, $src_total;
-    print $dc "  index criterion was <=10%, and it NAMED the caveat that persisting a\n";
-    print $dc "  per-observation identity node flips the verdict negative)\n";
+    print $dc "\nindex cost (the sealed court metric: controlling/last family's index over\n";
+    print $dc "  the sum of ALL families' source bytes; the Phase-28.7 gate's <=10% bar)\n";
+    printf $dc "  index bytes: %d  of  %d source bytes = %.2f%%  [%s]\n",
+        $incr_total->{index_bytes}, $src_total, $index_frac,
+        ($index_frac <= 10.0 ? "<=10% OK" : ">10% FAIL");
+    printf $dc "  interned dependency signatures (last revision): %d\n", $incr_total->{sigs};
+    printf $dc "  honest whole-set index (sum over families): %d = %.2f%% [%s]\n",
+        $incr_total->{index_total}, $index_total_frac,
+        ($index_total_frac <= 10.0 ? "<=10% OK" : ">10% FAIL");
+    print $dc $control_txt if length $control_txt;
     printf $dc "persistent bytes (index + content-addressed outputs): %d\n",
         $incr_total->{persistent};
     printf $dc "correctness (incremental == full rebuild on every revision): %s\n",
@@ -540,6 +581,9 @@ sub decide {
     print $dc "\nVERDICT: $verdict\n";
     print $dc "SCOPE: the reuse win is on LOCALIZED edits; a whole-document redraft\n";
     print $dc "(the real DOCX draft chain) reuses ~0 by construction.\n";
+    print $dc "NOTE: a per-observation output content id is 32 B; a CSV row averages\n";
+    print $dc "~30 B, so the CSV family's own index/src ratio stays >10% by construction\n";
+    print $dc "(recorded honestly). The sealed metric is dominated by the last family.\n";
     close $dc;
 
     # ---- write receipt.json ----
@@ -554,7 +598,7 @@ sub decide {
         close $mf;
     }
     my $receipt = {
-        phase => "29.3", kind => "incremental-observation", short => $short,
+        phase => $label, kind => "incremental-observation", short => $short,
         court => $campaign, metadata => $meta,
         exactness => { n => scalar(@ex), ok => ($exact_ok ? JSON::PP::true() : JSON::PP::false()) },
         families => \@report,
@@ -565,15 +609,23 @@ sub decide {
             incremental_equals_full => ($correct_ok ? JSON::PP::true() : JSON::PP::false()),
             cas_diverges_on_semantic => ($cas_wrong_on_semantic ? JSON::PP::true() : JSON::PP::false()),
         },
+        index_metric => "controlling (last) family index over the sum of all families' source bytes",
         index_fraction_pct => $index_frac,
+        index_fraction_total_pct => $index_total_frac,
+        index_bytes => $incr_total->{index_bytes},
+        index_bytes_total => $incr_total->{index_total},
+        src_total_bytes => $src_total,
+        index_signatures => $incr_total->{sigs},
         reuse_pct_rev_gt_1 => $reuse_overall,
         verdict => $verdict,
     };
+    $receipt->{control} = $control if $control;
     open my $rj, '>', "$out/receipt.json" or die $!;
     print $rj JSON::PP->new->pretty->canonical->encode($receipt);
     close $rj;
 
-    print STDERR "phase29-3: verdict=$verdict exact_ok=$exact_ok correct_ok=$correct_ok\n";
+    printf STDERR "phase %s: verdict=%s exact_ok=%s correct_ok=%s index=%.2f%% total=%.2f%%\n",
+        $label, $verdict, $exact_ok, $correct_ok, $index_frac, $index_total_frac;
     exit(($exact_ok && $correct_ok) ? 0 : 1);
 }
 
@@ -590,7 +642,7 @@ if ($cmd eq 'families') {
 } elsif ($cmd eq 'decide') {
     die "decide needs --raw --out --campaign --short\n"
         unless $opt{raw} && $opt{out} && $opt{campaign} && $opt{short};
-    decide($opt{raw}, $opt{out}, $opt{campaign}, $opt{short});
+    decide($opt{raw}, $opt{out}, $opt{campaign}, $opt{short}, $opt{label}, $opt{control});
 } else {
     die "usage: $0 families --out DIR | decide --raw DIR --out DIR --campaign C --short S\n";
 }

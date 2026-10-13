@@ -589,6 +589,46 @@ impl Accumulator {
         }
     }
 
+    /// Merge `other` — a partial accumulator over a **later, contiguous** chunk of
+    /// the same input — into `self`, in physical chunk order.
+    ///
+    /// This is the bounded parallel delimited scan's reduction (Phase 30.2): each
+    /// worker folds one record-aligned chunk (a [`Self`]) and the caller merges the
+    /// partials left-to-right. Every order-independent measure (`count`, integer
+    /// `sum`/`min`/`max`, grouped counts) is therefore **identical** to the serial
+    /// fold; a floating-point `sum`/`avg` reassociates across chunk boundaries, which
+    /// is deterministic (the boundaries are fixed by the input length, not the thread
+    /// count) and stays within the oracle's `1e-9` relative tolerance.
+    pub fn merge(&mut self, other: Accumulator) {
+        self.scanned += other.scanned;
+        self.nulls += other.nulls;
+        self.matched += other.matched;
+        self.sum_int += other.sum_int;
+        self.sum_float += other.sum_float;
+        if let Some(v) = other.min_int {
+            self.min_int = Some(self.min_int.map_or(v, |m| m.min(v)));
+        }
+        if let Some(v) = other.max_int {
+            self.max_int = Some(self.max_int.map_or(v, |m| m.max(v)));
+        }
+        if let Some(v) = other.min_float {
+            self.min_float = Some(self.min_float.map_or(v, |m| m.min(v)));
+        }
+        if let Some(v) = other.max_float {
+            self.max_float = Some(self.max_float.map_or(v, |m| m.max(v)));
+        }
+        for (k, c) in other.groups {
+            if let Some(dst) = self.groups.get_mut(&k) {
+                *dst += c;
+            } else if self.groups.len() < self.group_cap {
+                self.groups.insert(k, c);
+            } else {
+                self.groups_truncated = true;
+            }
+        }
+        self.groups_truncated |= other.groups_truncated;
+    }
+
     /// Finalize into a [`FusedAnswer`] for a column of `kind`.
     pub fn finish(self, kind: ColumnKind) -> FusedAnswer {
         let measure = match (self.op, kind) {

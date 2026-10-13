@@ -1,0 +1,2 @@
+request	outcome	units_read	preads	unit_bytes	closure_bytes	manifest_bytes	index_bytes	seed_bytes	dir_bytes	answer_bytes	matches_full	reason
+--block 0 --kind text	planned	1	18	7961	12456	0	3984	293	218	77	1	

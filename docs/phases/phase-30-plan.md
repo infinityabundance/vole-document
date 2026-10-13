@@ -1,19 +1,26 @@
 # Phase 30 — Close the measured gaps (large-input kernels, reading requests, index cost, framing)
 
-> **Status:** 30.1 **SHIPPED**; 30.2–30.4 **PENDING** — the contract below stays
-> frozen. Branch `phase30`. Results: [phase-30-results.md](phase-30-results.md).
-> Phase 29 produced the first generalized, court-verified execution wins but left
-> four recorded gaps. Phase 30 attacks them in order, each with its own falsifiable
-> court. Same rule as every subphase: exactness is the invariant, negatives are
-> recorded, no claim without evidence.
+> **Status:** 30.1–30.4 **SHIPPED**; 30.5 **PENDING** — the gaps are addressed and
+> court-verified; the plan's original three-gap partition was re-scoped mid-phase
+> (the residual CSV loss was carved out as its own subphase, shifting the reading
+> request and the standing negatives one slot later). Branch `phase30`. Results:
+> [phase-30-results.md](phase-30-results.md). Phase 29 produced the first
+> generalized, court-verified execution wins but left four recorded gaps. Phase 30
+> attacks them in order, each with its own falsifiable court. Same rule as every
+> subphase: exactness is the invariant, negatives are recorded, no claim without
+> evidence.
 >
 > **Progress (2026-10-13).** **30.1 shipped** — the large-input fused kernels took
 > the Arrow large lane **≈2.87 → 0.65** and Parquet **≈1.28 → 0.61** (every cell
 > `< 1.0`) and cut CSV **≈46.2 → 35.5** (improved ≈23 %, still 10.5–42× slower),
 > with the full-matrix pyarrow median **0.0772 → 0.0461** (W/T/L **406/41/163 →
-> 489/8/81**) and exactness **3/3 · 12/12**. **30.2 (coarse index for reading),
-> 30.3 (incremental index cost), and 30.4 (standing negatives) remain PENDING** —
-> no implementation, measurement, or claim.
+> 489/8/81**) and exactness **3/3 · 12/12**. The residual CSV loss became its own
+> subphase, and the two remaining original gaps follow: **30.2** (fused CSV past
+> pyarrow on **equal** work) **shipped**; **30.3** (incremental index cost)
+> **shipped** (`VOLEINC2`, sealed **27.29 % → 7.31 %**); **30.4** (coarse **reading**
+> requests) **shipped** (the reading request narrows **3/4** formats, from 1/4).
+> **30.5 (standing negatives) remains PENDING** — no implementation, measurement,
+> or claim.
 
 ## The gaps (from the Phase-29 results)
 
@@ -27,13 +34,14 @@
 4. **Standing negatives:** 15 detection findings; legacy bounded subsets; Arrow
    legacy (pre-0.15) no-continuation framing.
 
-## The order (frozen)
+## The order (frozen, then re-scoped: the residual CSV loss carved out as 30.2)
 
 ```text
 30.1  Large-input fused kernels   — SHIPPED: Arrow + Parquet past pyarrow (every cell < 1.0); CSV improved, still lossy
-30.2  Coarse index for reading    — PENDING: serve the natural reading request from coarse member spans
-30.3  Incremental index cost      — PENDING: dependency-signature-only index (< 10%); keep correctness
-30.4  Standing negatives          — PENDING: detection findings, legacy subset edges, Arrow legacy framing
+30.2  Fused CSV past pyarrow      — SHIPPED: read-inclusive (parse + aggregate); fused beats pyarrow on equal work
+30.3  Incremental index cost      — SHIPPED: VOLEINC2 sealed 27.29% -> 7.31% (<=10%); correctness held
+30.4  Coarse index for reading    — SHIPPED: serve the natural reading request from coarse member spans (3/4 formats)
+30.5  Standing negatives          — PENDING: detection findings, legacy subset edges, Arrow legacy framing
 ```
 
 ## Acceptance (per subphase, unchanged)

@@ -1,0 +1,301 @@
+{
+ "agreement": {
+  "comparisons": 52,
+  "disagreements": 0,
+  "ok": true
+ },
+ "campaign": "evidence/campaigns/2026-10-13-phase30-2-csv-8ed3e80b",
+ "cold": {
+  "overall_ns": {
+   "duckdb": 206848405.5,
+   "fused": 3088644.5,
+   "pyarrow": 76271907.5
+  }
+ },
+ "court_status": "PASS",
+ "declines": {},
+ "env": {
+  "arch": "x86_64",
+  "bin": "target/release/vole-document",
+  "bin_sha256": "6c7020ae6ae49921c1301ae4c4a5190a41a4c3c691b2289fd0dfbe2a2fa7f510",
+  "build_args": "--release --locked --all-features",
+  "campaign": "evidence/campaigns/2026-10-13-phase30-2-csv-8ed3e80b",
+  "cargo": "cargo 1.99.0 (5f94df478 2026-08-27)",
+  "cargo_lock_sha256": "11edd0eba51f4b8b7702751b5d13a305424c0d834b47fd456f8c5c1cf35c5de1",
+  "duckdb_version": "1.5.6",
+  "env_affecting_semantics": {
+   "LC_ALL": "C"
+  },
+  "headline_metric": "in-process steady-state median",
+  "historical_control": "evidence/campaigns/2026-10-12-phase30-1-kernels-2ec78328",
+  "iters": 9,
+  "lanes": [
+   "fused",
+   "fused_serial",
+   "pyarrow_agg",
+   "pyarrow_read",
+   "duckdb_read",
+   "duckdb_agg"
+  ],
+  "measured_commit": "8ed3e80b1ac806f2748b5c79327f2247b9eaa527",
+  "phase": "30.2 \u2014 fused CSV kernel past pyarrow (bounded parallel scan, read-inclusive)",
+  "profile": "release",
+  "pyarrow_version": "25.0.1",
+  "python": "Python 3.11.2",
+  "reps": 5,
+  "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+  "service": "analytical",
+  "tree_state": " M src/adapter/csv.rs  M src/adapter/fused.rs  M src/main.rs ?? evidence/campaigns/2026-10-13-phase30-2-csv-8ed3e80b/ ?? tools/fixtures/phase30-2-csv.py ?? tools/phase30-2-csv-court.sh ",
+  "utc": "2026-10-13T06:29:45Z",
+  "vole_substrate": "--profile runtime --packed",
+  "warmup": 3,
+  "workers": "0"
+ },
+ "estimator": {
+  "duckdb_agg": {
+   "geomean": 0.8556644210611011,
+   "geomean_ci": [
+    0.797505286930048,
+    0.9235034538618057
+   ],
+   "losses": 12,
+   "mde": 0.07780811877064697,
+   "median": 0.8346689808023255,
+   "median_ci": [
+    0.8045403205403814,
+    0.9134080497949482
+   ],
+   "n_clusters": 10,
+   "n_samples": 50,
+   "ties": 15,
+   "wins": 38
+  },
+  "duckdb_read": {
+   "geomean": 0.035381276068700035,
+   "geomean_ci": [
+    0.03290732620209761,
+    0.03844653945370444
+   ],
+   "losses": 0,
+   "mde": 0.001484439695093588,
+   "median": 0.03284514322881236,
+   "median_ci": [
+    0.03207555246210137,
+    0.034152553954664724
+   ],
+   "n_clusters": 10,
+   "n_samples": 50,
+   "ties": 0,
+   "wins": 50
+  },
+  "pyarrow_agg": {
+   "geomean": 9.028439562031322,
+   "geomean_ci": [
+    6.308226587069953,
+    12.218745778046497
+   ],
+   "losses": 50,
+   "mde": 4.862786462497558,
+   "median": 9.709844115160656,
+   "median_ci": [
+    5.300398229210616,
+    12.104322143403392
+   ],
+   "n_clusters": 10,
+   "n_samples": 50,
+   "ties": 0,
+   "wins": 0
+  },
+  "pyarrow_read": {
+   "geomean": 0.3597804677548931,
+   "geomean_ci": [
+    0.326508928085223,
+    0.40130730894908045
+   ],
+   "losses": 1,
+   "mde": 0.05772249614473852,
+   "median": 0.36178387826807124,
+   "median_ci": [
+    0.31158916965074956,
+    0.39235345468258154
+   ],
+   "n_clusters": 10,
+   "n_samples": 50,
+   "ties": 0,
+   "wins": 49
+  }
+ },
+ "estimator_serial": {
+  "duckdb_agg": {
+   "geomean": 2.005412187684294,
+   "geomean_ci": [
+    1.8988514088095154,
+    2.12291721565922
+   ],
+   "losses": 50,
+   "mde": 0.16387534905882598,
+   "median": 2.0152599965554443,
+   "median_ci": [
+    1.9091132674506999,
+    2.1384047271944135
+   ],
+   "n_clusters": 10,
+   "n_samples": 50,
+   "ties": 0,
+   "wins": 0
+  },
+  "duckdb_read": {
+   "geomean": 0.08292274459186265,
+   "geomean_ci": [
+    0.07861895678195169,
+    0.08753378933426431
+   ],
+   "losses": 0,
+   "mde": 0.008087532288058209,
+   "median": 0.08272600567786481,
+   "median_ci": [
+    0.07723202669508425,
+    0.08854795733812204
+   ],
+   "n_clusters": 10,
+   "n_samples": 50,
+   "ties": 0,
+   "wins": 50
+  },
+  "pyarrow_agg": {
+   "geomean": 21.15986394644751,
+   "geomean_ci": [
+    14.862153420511806,
+    28.272420528454056
+   ],
+   "losses": 50,
+   "mde": 11.498956167292478,
+   "median": 23.797297969300384,
+   "median_ci": [
+    14.186133158613586,
+    30.275267127024005
+   ],
+   "n_clusters": 10,
+   "n_samples": 50,
+   "ties": 0,
+   "wins": 0
+  },
+  "pyarrow_read": {
+   "geomean": 0.8432139015803459,
+   "geomean_ci": [
+    0.7776873105731502,
+    0.9122380103642741
+   ],
+   "losses": 14,
+   "mde": 0.12265995649424656,
+   "median": 0.805406351533031,
+   "median_ci": [
+    0.7423376903314985,
+    0.9139613093699561
+   ],
+   "n_clusters": 10,
+   "n_samples": 50,
+   "ties": 11,
+   "wins": 36
+  }
+ },
+ "exactness": {
+  "n": 3,
+  "ok": 3
+ },
+ "headline": {
+  "duckdb_agg": {
+   "geomean": 0.8250995277823359,
+   "median": 0.8247020180357858,
+   "questions": 10
+  },
+  "duckdb_read": {
+   "geomean": 0.03306292189500962,
+   "median": 0.03284514322881236,
+   "questions": 10
+  },
+  "pyarrow_agg": {
+   "geomean": 8.465218427816643,
+   "median": 9.553530583186518,
+   "questions": 10
+  },
+  "pyarrow_read": {
+   "geomean": 0.3503937851748777,
+   "median": 0.36588494220586215,
+   "questions": 10
+  }
+ },
+ "large_csv_gap": {
+  "id:avg": {
+   "duckdb_agg": 0.9568947700626163,
+   "duckdb_read": 0.03359332859157136,
+   "pyarrow_agg": 12.139941837144002,
+   "pyarrow_read": 0.38369120748918295
+  },
+  "id:count": {
+   "duckdb_agg": 0.9072948693143221,
+   "duckdb_read": 0.032527819445611346,
+   "pyarrow_agg": 9.365136298421808,
+   "pyarrow_read": 0.36645754503331174
+  },
+  "id:max": {
+   "duckdb_agg": 0.8179725087248653,
+   "duckdb_read": 0.033385601932299724,
+   "pyarrow_agg": 11.226935911276867,
+   "pyarrow_read": 0.38472859793915126
+  },
+  "id:min": {
+   "duckdb_agg": 0.9204919731579714,
+   "duckdb_read": 0.03681774428534805,
+   "pyarrow_agg": 14.358587549010233,
+   "pyarrow_read": 0.3938407524399017
+  },
+  "id:sum": {
+   "duckdb_agg": 0.9160794354018855,
+   "duckdb_read": 0.03225572958340088,
+   "pyarrow_agg": 13.140635340833885,
+   "pyarrow_read": 0.45440116968253913
+  },
+  "score:avg": {
+   "duckdb_agg": 0.8131513461934252,
+   "duckdb_read": 0.032673252390386556,
+   "pyarrow_agg": 9.072072217037299,
+   "pyarrow_read": 0.29373321419919196
+  },
+  "score:count": {
+   "duckdb_agg": 0.6150239302322713,
+   "duckdb_read": 0.02783015946800166,
+   "pyarrow_agg": 8.204144351795359,
+   "pyarrow_read": 0.2883724191978855
+  },
+  "score:max": {
+   "duckdb_agg": 0.7900996955437944,
+   "duckdb_read": 0.028045095992639837,
+   "pyarrow_agg": 2.435673061986944,
+   "pyarrow_read": 0.29770118691602887
+  },
+  "score:min": {
+   "duckdb_agg": 0.8314315273467063,
+   "duckdb_read": 0.03301703406723816,
+   "pyarrow_agg": 4.442813573660035,
+   "pyarrow_read": 0.3128183217451303
+  },
+  "score:sum": {
+   "duckdb_agg": 0.743339343200229,
+   "duckdb_read": 0.04279352034699138,
+   "pyarrow_agg": 9.741924867951228,
+   "pyarrow_read": 0.36531233937841256
+  }
+ },
+ "mode": "csv",
+ "phase": "30.2 \u2014 fused CSV kernel past pyarrow (bounded parallel scan, read-inclusive)",
+ "steady_distribution_ns": {
+  "csv": {
+   "cells": 26,
+   "p50": 145341.5,
+   "p95": 150943.09999999998,
+   "p99": 155352.04000000004
+  }
+ },
+ "verdict": "PASS"
+}

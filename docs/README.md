@@ -125,11 +125,17 @@ Frozen rationale and receipts, kept as a durable record (not rewritten).
   [Phase 30](phases/phase-30-results.md) (closing the measured gaps — **30.1
   shipped**: the large-input fused kernels take Arrow **≈2.87 → 0.65** and
   Parquet **≈1.28 → 0.61** past pyarrow (**every cell `< 1.0`**) and improve CSV
-  **≈46.2 → 35.5** (still 10.5–42× slower — the remaining recorded loss), with
-  the full-matrix pyarrow median **0.0772 → 0.0461** (W/T/L **406/41/163 →
-  489/8/81**), exactness **3/3 · 12/12**, and the econ court's `IFS` defect
-  fixed; **30.2** coarse index for reading, **30.3** incremental index cost, and
-  **30.4** standing negatives are **PENDING**),
+  **≈46.2 → 35.5** (still 10.5–42× slower), with the full-matrix pyarrow median
+  **0.0772 → 0.0461** (W/T/L **406/41/163 → 489/8/81**), exactness **3/3 · 12/12**,
+  and the econ court's `IFS` defect fixed; **30.2 shipped**: the fused CSV kernel
+  beats pyarrow on **equal** work (parse + aggregate) at a paired median **0.342**
+  (**~2.9×**; sealed receipt **0.362**), still **~9× slower** than the 30.1
+  aggregation-only lane; **30.3 shipped**: the `VOLEINC2` incremental index takes
+  the sealed metric **27.29 % → 7.31 %** (≤10 %) with reuse 49.6 % and correctness
+  held (whole-set sum 24.82 %, redraft reuse 0 % — recorded); **30.4 shipped**: the
+  coarse reading request narrows in **3/4** formats (DOCX/ODT **~3.29 MB → 13.0 /
+  12.5 KB**), PDF unchanged, **Parquet reading still 0.50×**; **30.5** standing
+  negatives is **PENDING**),
   **in progress**:
   [Phase 21](phases/phase-21-plan.md) (format programme — **Wave 1 complete**: XLSX,
   PPTX, ODS, ODP adapters + economic courts = six office formats; **Wave 2

@@ -32,6 +32,31 @@ pub trait SourceServer {
     fn serve_range(&self, offset: u64, len: u64, limits: Limits) -> Result<Vec<u8>>;
     /// The whole reconstructed source (only a `DocumentExact` node needs this).
     fn serve_document(&self, limits: Limits) -> Result<Vec<u8>>;
+
+    /// A *fine-grained* exact byte-range read: exactly `[offset, offset + len)`,
+    /// not rounded up to a coarse unit.
+    ///
+    /// This is the Phase-30.4 unit-addressed hook. The coarse lane is the only
+    /// source that implements it; every other source returns `Ok(None)`, so the
+    /// package/file model builders fall back to the whole-source path unchanged.
+    /// Reading through it is always permitted (a real read, always charged); it
+    /// is used to serve the few structural bytes a package reader consults — the
+    /// ZIP central directory and each member's local header — without
+    /// materializing the whole `DocumentExact` source.
+    fn read_exact(&self, _offset: u64, _len: u64, _limits: Limits) -> Result<Option<Vec<u8>>> {
+        Ok(None)
+    }
+
+    /// The source length, when this source can serve fine-grained reads.
+    fn exact_len(&self) -> Option<u64> {
+        None
+    }
+
+    /// The ZIP central-directory region `[cd_offset, source_len)` when this
+    /// source is unit-addressed over a ZIP package. `Ok(None)` otherwise.
+    fn zip_directory(&self, _limits: Limits) -> Result<Option<(u64, Vec<u8>)>> {
+        Ok(None)
+    }
 }
 
 impl SourceServer for ParsedDescriptor {
@@ -552,22 +577,30 @@ fn materialize_inner(
             // and all bounds live in `field::opc` / `adapter::package::opc`.
             #[cfg(feature = "opc")]
             {
-                let dep = node
-                    .deps
-                    .first()
-                    .ok_or_else(|| Error::usage("PackageOpcModel has no dependency"))?;
-                let child = load_node(store, dep)?;
-                let source = materialize_inner(
-                    source,
-                    store,
-                    cache,
-                    &child,
-                    limits,
-                    budget,
-                    depth - 1,
-                    reuse,
-                )?;
-                crate::field::opc::build_opc_model(&source, limits)?
+                // Unit-addressed lane (Phase 30.4): when the source can serve
+                // fine-grained ranges (the coarse lane), build the OPC model from
+                // the ZIP central directory plus only the members a package reader
+                // decodes, so the whole `DocumentExact` source is never materialized.
+                if let Some(bytes) = crate::field::pkgread::opc_model_from_units(source, limits)? {
+                    bytes
+                } else {
+                    let dep = node
+                        .deps
+                        .first()
+                        .ok_or_else(|| Error::usage("PackageOpcModel has no dependency"))?;
+                    let child = load_node(store, dep)?;
+                    let source = materialize_inner(
+                        source,
+                        store,
+                        cache,
+                        &child,
+                        limits,
+                        budget,
+                        depth - 1,
+                        reuse,
+                    )?;
+                    crate::field::opc::build_opc_model(&source, limits)?
+                }
             }
             #[cfg(not(feature = "opc"))]
             {
@@ -728,22 +761,29 @@ fn materialize_inner(
             // parsing and all bounds live in `adapter::odt`.
             #[cfg(feature = "odt")]
             {
-                let dep = node
-                    .deps
-                    .first()
-                    .ok_or_else(|| Error::usage("OdtModel has no dependency"))?;
-                let child = load_node(store, dep)?;
-                let source = materialize_inner(
-                    source,
-                    store,
-                    cache,
-                    &child,
-                    limits,
-                    budget,
-                    depth - 1,
-                    reuse,
-                )?;
-                crate::adapter::odt::build_odt_model(&source, limits)?
+                // Unit-addressed lane (Phase 30.4): build the ODF discovery model
+                // from the ZIP central directory plus the decodable manifest members
+                // only, never materializing the whole `DocumentExact` source.
+                if let Some(bytes) = crate::field::pkgread::odt_model_from_units(source, limits)? {
+                    bytes
+                } else {
+                    let dep = node
+                        .deps
+                        .first()
+                        .ok_or_else(|| Error::usage("OdtModel has no dependency"))?;
+                    let child = load_node(store, dep)?;
+                    let source = materialize_inner(
+                        source,
+                        store,
+                        cache,
+                        &child,
+                        limits,
+                        budget,
+                        depth - 1,
+                        reuse,
+                    )?;
+                    crate::adapter::odt::build_odt_model(&source, limits)?
+                }
             }
             #[cfg(not(feature = "odt"))]
             {

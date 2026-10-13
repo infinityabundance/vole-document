@@ -1,0 +1,4 @@
+fixture	format	vole_ok	len_ok	sha_ok	cmp_ok	mat_us
+e_large.csv	true	true	true	true	12652
+e_multi.csv	true	true	true	true	3567
+e_null.csv	true	true	true	true	3534

@@ -2,6 +2,86 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.41] — Phase 30.2–30.4: fused CSV past pyarrow, the ≤10 % incremental index, and coarse reading requests — *unreleased*
+
+- **30.2 — fused CSV kernel past pyarrow (read-inclusive).** Phase 30.1 left the
+  `e_large` CSV lane a recorded loss (`fused/pyarrow ≈35.5`) and, on inspection, its
+  pyarrow **CSV** lane timed **only the in-memory aggregation** (`pyarrow.compute`
+  over an already-parsed `Table`; `pyarrow.csv.read_csv` sat outside the timed
+  lambda). 30.2 (1) replaces the scalar SWAR field scan with the SIMD `memchr3`
+  search (SWAR fallback when `memmem-scan` is off) and adds a **bounded,
+  deterministic, record-aligned multi-threaded** delimited scan behind `--workers N`
+  (feature `parallel`; chunk boundaries a fixed function of the input length,
+  partial accumulators merged left-to-right, declines propagated from the earliest
+  chunk so **parallel == serial** on errors; a conservative serial fallback on any
+  quote, bare-CR dialect, `< 64 KiB`, or `grouped`), and (2) measures the honest
+  apples-to-apples comparator: pyarrow `read_csv(bytes) + aggregate` and DuckDB
+  `read_csv_auto` (**read-inclusive**), while still reporting the Phase-30.1
+  aggregation-only number for continuity. Result (in-process steady-state; ADR-0054
+  paired per-question ratio, fixed-seed cluster bootstrap B = 20000, MDE, every raw
+  sample retained): fused/pyarrow **read-inclusive** median **0.342** (**~2.9×
+  faster, 50/50 wins**) — the sealed receipt records **0.362** [0.312, 0.392],
+  **49/0/1**; vs DuckDB read-inclusive **0.033** (50/0/0). **Honest caution:** against
+  the Phase-30.1 *aggregation-only* pyarrow lane the kernel is **still ~9× slower**
+  (geomean **35.5 → 9.0**; sealed median **9.710**), and the **serial** scanner
+  (`--workers 1`) against pyarrow read-inclusive is **1.012** (sealed **0.805**) —
+  the **parallel split** is what crosses the line. Cold fused **3.09 ms** vs pyarrow
+  **76.3 ms** / DuckDB **206.8 ms**. Exactness **3/3** (fixture); oracle agreement
+  **52/52** (incl. empty-field NULLs + a grouped question). New court
+  `tools/phase30-2-csv-court.sh`; receipt `2026-10-13-phase30-2-csv-8ed3e80b`
+  (control Phase 30.1).
+- **30.3 — incremental observation index reaches the ≤10 % bar (`VOLEINC2`).**
+  Phase 29.3 verified incremental observation correct but at an index **27.3 %** of
+  source, above the Phase-28.7 gate's ≤10 % bar. 30.3 ships the versioned
+  **`VOLEINC2`** index (`src/field/incremental.rs`; 44 B header + **interned**
+  signatures + varint refs + a **32 B output content id**): a **positional slot**
+  (identity = the enumerated key's ordinal, **not** persisted) + an interned
+  **physical** signature ref (varint) + an interned **semantic** signature ref
+  (varint) + the output content id; scope `BLAKE3(format)[..16]` (a scope/version
+  mismatch is "no prior index", **never** reuse); the four ADR-0060 namespaces stay
+  **distinct** (only the *persisted* identity node is dropped). Sealed court metric
+  (the **controlling/last family's index over the sum of ALL families' source
+  bytes**, the gate's ≤10 % bar): **27.29 % → 7.31 %** (199,622 / 2,730,316 B);
+  reuse (rev > 1) **49.6 %** (unchanged, Δ +0.0 pp); incremental answers **== full
+  rebuild on every revision**, and the physical-only CAS **still diverges wrong** on
+  a style/shared-string case (**1,066** semantic-only invalidations — the semantic
+  edges are load-bearing); exactness **16/16**. **Honest caveats (recorded):** the
+  **whole-set sum** (index over *all* families) is **24.82 %**, still **>10 %** — a
+  32 B output content id cannot be a small fraction of a ~30 B CSV row (the CSV
+  family's own index/source ratio is **38.48 %** by construction) — and
+  whole-document-redraft reuse is **0 %**. Persistent bytes (index +
+  content-addressed outputs) **582,031**; bytes recomputed full **2,540,635** / cas
+  **1,337,213** / incremental **1,408,687**. New court
+  `tools/phase30-3-incremental-court.sh`; receipt
+  `2026-10-13-phase30-3-incremental-f3765c2b` (control Phase 29.3, `VOLEINC1`,
+  27.29 %).
+- **30.4 — coarse unit-addressed reading requests.** Phase 29.2 shipped the coarse
+  structural index but recorded that the natural **reading** request narrowed for
+  **PDF only (1/4)** — the DOCX/ODT/Parquet format-model nodes materialized the
+  whole exact `DocumentExact` source, so their coarse units were built but **inert**.
+  30.4 serves the reading request from the **coarse member spans** (the ZIP member /
+  column chunk) **plus the ZIP central directory**, so its closure is unit +
+  directory, not the whole document (closures are real `pread` bytes; corpus and
+  reconstruction are unchanged from 29.2). The **reading** request now narrows in
+  **3/4** formats (Phase 29.2: 1/4): PDF **3,245,913 → 46,545** (69.74×, unchanged),
+  DOCX **3,290,209 → 13,003** (**253.03×**), ODT **3,289,667 → 12,456**
+  (**264.10×**) — DOCX/ODT closures from ~**3.29 MB** to **13.0 / 12.5 KB**, beating
+  the page-SQLite control's **20,596 B** (closure/SQLite 1.58× / 1.65×); **span**
+  requests stay narrower than the control in **4/4**. **Remaining loss (recorded):**
+  Parquet reading is still **0.50×** its control (8,390,673 vs 4,196,116) — the
+  `ParquetCell` projection slices the containing column chunk out of a whole-source
+  buffer (`parquet_source()` materializes the `DocumentExact` root) and the
+  `ParquetModel` node reads the whole source; unit-addressing the cell needs a
+  **range source threaded through the Parquet value decoders** (a separate
+  subphase), and a footer-only model would not flip it on its own. Directory
+  overhead: `VCI1` 30,461 B (PDF, ~34 B/object unit) / 218 B (DOCX/ODT) / 201 B
+  (Parquet), charged once per observation. Exactness **4/4**; ADR-0060 untouched. New
+  court `tools/phase30-4-coarse-reading-court.sh`; receipt
+  `2026-10-13-phase30-4-coarse-reading-6764974f` (control Phase 29.2).
+- **30.5 — standing negatives — PENDING.** The **15 detection findings**, the
+  **legacy bounded subsets**, and the **legacy Arrow (pre-0.15) no-continuation
+  framing** remain recorded; not started (no implementation, measurement, or claim).
+
 ## [0.1.0-alpha.40] — Phase 30.1: large-input fused kernels — *unreleased*
 
 - **30.1 — large-input fused kernels (Arrow and Parquet now beat pyarrow on large
@@ -37,9 +117,10 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   `2026-10-12-phase30-1-kernels-2ec78328` (+ `2026-10-12-phase29-1-fused-2ec78328`
   after-econ; the Phase-29.1 receipt `…-19d2c372` is retained as the control).
   Regression tests `tests/fused_kernel.rs`; correctness court
-  `tools/phase29-1-1-fused-court.sh`. **Remaining Phase-30 work — 30.2 (coarse
-  index for reading requests), 30.3 (incremental index < 10 %), and 30.4 (standing
-  negatives) — is PENDING** (see [phase-30-plan.md](../phases/phase-30-plan.md),
+  `tools/phase29-1-1-fused-court.sh`. **The remaining Phase-30 work — the residual
+  CSV loss, the incremental index cost, the coarse reading request, and the standing
+  negatives — followed in [0.1.0-alpha.41]** (see
+  [phase-30-plan.md](../phases/phase-30-plan.md),
   [phase-30-results.md](../phases/phase-30-results.md)).
 
 ## [0.1.0-alpha.39] — Phase 29: generalized fused execution, coarse structural index, incremental observation — *unreleased*
