@@ -1,0 +1,12 @@
+docker compose run --rm --no-TTY analytical sh tools/phase30-2-csv-court.sh
+# PROFILE defaults to release (target/release/vole-document).
+# Inside the court:
+#   cargo build --release --locked --all-features
+#   python3 tools/fixtures/make-arrow.py --econ $WORK/corpus     # .arrow + .parquet + .csv
+#   VOLE (parallel): $BIN fused-scan --store S --field HEX --packed --format csv \
+#       --column C --kind int|float --pred gt:K --op OP --workers 0 --warmup W --repeat R
+#   VOLE (serial):   ... --workers 1 ...
+#   pyarrow: python3 $DRIVER oracle pyarrow --source F --column C --kind K --op OP --gt G ...
+#   DuckDB:  python3 $DRIVER oracle duckdb  --source F --column C --kind K --op OP --gt G ...
+#   aggregate: python3 $DRIVER collect --raw RAW --reps REPS
+#              python3 $DRIVER aggregate --raw RAW --campaign CAMPAIGN --env ENV

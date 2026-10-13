@@ -49,6 +49,9 @@
 
 use crate::error::{Error, Result};
 use crate::limits::Limits;
+use crate::parallel::WorkerPool;
+#[cfg(feature = "parallel")]
+use rayon::prelude::*;
 
 /// Wire version of the canonical derived model.
 pub const MODEL_VERSION: u8 = 1;
@@ -1064,52 +1067,70 @@ impl<'a> FusedScanner<'a> {
     }
 }
 
-/// SWAR constants for an 8-byte-at-a-time byte search.
+/// SWAR constants for an 8-byte-at-a-time byte search (the scalar field-end scan
+/// used when the `memmem-scan` feature is absent).
+#[cfg(not(feature = "memmem-scan"))]
 const SWAR_LO: u64 = 0x0101_0101_0101_0101;
+#[cfg(not(feature = "memmem-scan"))]
 const SWAR_HI: u64 = 0x8080_8080_8080_8080;
 
+#[cfg(not(feature = "memmem-scan"))]
 #[inline(always)]
 fn swar_zero(x: u64) -> u64 {
     x.wrapping_sub(SWAR_LO) & !x & SWAR_HI
 }
 
 /// A high-bit mask with a bit set in every byte of `x` equal to `b`.
+#[cfg(not(feature = "memmem-scan"))]
 #[inline(always)]
 fn swar_eq(x: u64, b: u8) -> u64 {
     swar_zero(x ^ u64::from(b).wrapping_mul(SWAR_LO))
 }
 
 /// The index of the first byte in `bytes[at..]` that is the delimiter, `\r`, `\n`,
-/// or the end of input — an 8-byte-at-a-time (SWAR) unquoted-field scan. A quote
-/// inside an unquoted field is an ordinary byte, so it is not a stop byte here.
+/// or the end of input — a field-end scan. A quote inside an unquoted field is an
+/// ordinary byte, so it is not a stop byte here. With the `memmem-scan` feature
+/// (implied by `field`) this is the SIMD `memchr3` search; otherwise it is the
+/// 8-byte-at-a-time SWAR scan. Both find the identical first stop byte.
 #[inline]
-fn scan_to_field_end(bytes: &[u8], mut at: usize, delim: u8) -> usize {
-    let n = bytes.len();
-    while at + 8 <= n {
-        let w = u64::from_le_bytes([
-            bytes[at],
-            bytes[at + 1],
-            bytes[at + 2],
-            bytes[at + 3],
-            bytes[at + 4],
-            bytes[at + 5],
-            bytes[at + 6],
-            bytes[at + 7],
-        ]);
-        let m = swar_eq(w, delim) | swar_eq(w, b'\r') | swar_eq(w, b'\n');
-        if m != 0 {
-            return at + (m.trailing_zeros() as usize / 8);
+fn scan_to_field_end(bytes: &[u8], at: usize, delim: u8) -> usize {
+    #[cfg(feature = "memmem-scan")]
+    {
+        match memchr::memchr3(delim, b'\r', b'\n', &bytes[at..]) {
+            Some(i) => at + i,
+            None => bytes.len(),
         }
-        at += 8;
     }
-    while at < n {
-        let c = bytes[at];
-        if c == delim || c == b'\r' || c == b'\n' {
-            break;
+    #[cfg(not(feature = "memmem-scan"))]
+    {
+        let n = bytes.len();
+        let mut at = at;
+        while at + 8 <= n {
+            let w = u64::from_le_bytes([
+                bytes[at],
+                bytes[at + 1],
+                bytes[at + 2],
+                bytes[at + 3],
+                bytes[at + 4],
+                bytes[at + 5],
+                bytes[at + 6],
+                bytes[at + 7],
+            ]);
+            let m = swar_eq(w, delim) | swar_eq(w, b'\r') | swar_eq(w, b'\n');
+            if m != 0 {
+                return at + (m.trailing_zeros() as usize / 8);
+            }
+            at += 8;
         }
-        at += 1;
+        while at < n {
+            let c = bytes[at];
+            if c == delim || c == b'\r' || c == b'\n' {
+                break;
+            }
+            at += 1;
+        }
+        at
     }
-    at
 }
 
 /// Powers of ten exactly representable in `f64` (up to `10^22`).
@@ -1254,12 +1275,44 @@ fn parse_num_f64(raw: &[u8], quoted: bool) -> Result<Option<f64>> {
 /// `Int` parses each field as `i64`, `Float` as `f64`. A non-empty field that does
 /// not parse, a ragged row, or `grouped` on a float column is a **typed decline**.
 /// An empty field is SQL `NULL`.
+///
+/// This is the serial entry point. When the `parallel` feature is enabled the CLI
+/// calls [`fused_scan_with_pool`] instead, which admits a bounded multi-threaded
+/// scan; the result is identical (see [`fused_scan_with_pool`]).
 pub fn fused_scan(
     source: &[u8],
     column: &str,
     kind: crate::adapter::fused::ColumnKind,
     plan: &crate::adapter::fused::FusedPlan,
     limits: Limits,
+) -> Result<crate::adapter::fused::FusedAnswer> {
+    fused_scan_with_pool(source, column, kind, plan, limits, None)
+}
+
+/// [`fused_scan`] with an optional bounded worker pool (Phase 30.2).
+///
+/// When a pool of more than one worker is supplied, the `parallel` feature is on,
+/// the source is large enough, the data region contains **no quote byte** (so a
+/// `\n` is always a record terminator) and the dominant terminator is not a bare
+/// `\r`, the data region is split into a **fixed number of record-aligned chunks**
+/// and each chunk is scanned on the pool. The chunk count is derived from the input
+/// length alone — never from the thread count — and the partial accumulators are
+/// merged in physical order ([`Accumulator::merge`]), so the answer is
+/// deterministic and independent of the pool size.
+///
+/// Every decline is preserved: a chunk returns the first error it meets, and the
+/// merge propagates the error of the **earliest** chunk (document order), which is
+/// exactly the error the serial scan returns. Anything the parallel precondition
+/// does not admit falls back to the serial scanner unchanged.
+///
+/// [`Accumulator::merge`]: crate::adapter::fused::Accumulator::merge
+pub fn fused_scan_with_pool(
+    source: &[u8],
+    column: &str,
+    kind: crate::adapter::fused::ColumnKind,
+    plan: &crate::adapter::fused::FusedPlan,
+    limits: Limits,
+    pool: Option<&WorkerPool>,
 ) -> Result<crate::adapter::fused::FusedAnswer> {
     use crate::adapter::fused::{Accumulator, ColumnKind};
     let dialect = sniff_dialect(source, limits)?;
@@ -1278,6 +1331,16 @@ pub fn fused_scan(
         _ => 1,
     };
     let start = (header.end as usize).saturating_add(eol);
+
+    #[cfg(feature = "parallel")]
+    if let Some(p) = pool.filter(|p| p.workers() > 1)
+        && parallel_applicable(source, dialect, start, plan.op)
+    {
+        return p.install(|| parallel_scan(source, start, dialect, idx, kind, plan, limits));
+    }
+    #[cfg(not(feature = "parallel"))]
+    let _ = pool;
+
     let mut scanner = FusedScanner::new(source, dialect, start, limits);
     let mut acc = Accumulator::new(plan);
     let mut vals: Vec<f64> = Vec::with_capacity(FUSED_BATCH);
@@ -1328,6 +1391,176 @@ pub fn fused_scan(
             ColumnKind::Int => acc.push_i64(&ivals, valid),
             ColumnKind::Float => acc.push_f64(&vals, valid),
         }
+    }
+    Ok(acc.finish(kind))
+}
+
+/// The minimum data-region size (bytes) worth splitting into parallel chunks.
+#[cfg(feature = "parallel")]
+const PARALLEL_MIN_BYTES: usize = 64 * 1024;
+/// The target byte span of one parallel chunk (rounded up to the next `\n`).
+#[cfg(feature = "parallel")]
+const PARALLEL_CHUNK_TARGET: usize = 256 * 1024;
+/// A hard chunk cap, so the split stays bounded regardless of input size.
+#[cfg(feature = "parallel")]
+const PARALLEL_MAX_CHUNKS: usize = 64;
+
+/// Whether the bounded parallel scan may be used for this source/dialect/operator.
+///
+/// Conservative by construction: any doubt falls back to the serial scanner, so
+/// exactness and the typed declines never depend on the parallel path. A chunk
+/// boundary is a byte just past a `\n`; that is a genuine record start **iff** no
+/// quoted field can contain a `\n`, which the no-quote-byte check guarantees.
+#[cfg(feature = "parallel")]
+fn parallel_applicable(
+    source: &[u8],
+    dialect: Dialect,
+    start: usize,
+    op: crate::adapter::fused::FusedOp,
+) -> bool {
+    // A bare-`\r` terminator has no `\n` to split on.
+    if dialect.terminator == TERM_CR {
+        return false;
+    }
+    // Grouped counts over a capped key set are document-order sensitive (the serial
+    // fold keeps the first `group_cap` distinct keys); keep them serial.
+    if matches!(op, crate::adapter::fused::FusedOp::Grouped) {
+        return false;
+    }
+    let data = &source[start.min(source.len())..];
+    if data.len() < PARALLEL_MIN_BYTES {
+        return false;
+    }
+    // No quote byte anywhere in the data region: every `\n` is a record terminator.
+    memchr::memchr(dialect.quote, data).is_none()
+}
+
+/// Record-aligned chunk boundaries over `source[start..]`: each interior boundary is
+/// the byte just past a `\n`. Bounded to [`PARALLEL_MAX_CHUNKS`] chunks; the count
+/// depends only on the input length, never on the number of workers.
+#[cfg(feature = "parallel")]
+fn chunk_bounds(source: &[u8], start: usize, nchunks: usize) -> Vec<usize> {
+    let n = source.len();
+    let data_len = n.saturating_sub(start);
+    let mut bounds = Vec::with_capacity(nchunks + 1);
+    bounds.push(start);
+    for k in 1..nchunks {
+        let approx = start + data_len * k / nchunks;
+        let last = *bounds.last().expect("non-empty bounds");
+        if approx <= last {
+            continue;
+        }
+        if let Some(p) = memchr::memchr(b'\n', &source[approx..]) {
+            let rec = approx + p + 1;
+            if rec < n && rec > last {
+                bounds.push(rec);
+            }
+        }
+    }
+    bounds.push(n);
+    bounds
+}
+
+/// Scan one record-aligned chunk (a complete slice of data records) into a partial
+/// [`Accumulator`](crate::adapter::fused::Accumulator). Pure: it reads only the
+/// immutable `chunk` and allocates only its own bounded batch buffers.
+#[cfg(feature = "parallel")]
+fn scan_chunk(
+    chunk: &[u8],
+    dialect: Dialect,
+    idx: usize,
+    kind: crate::adapter::fused::ColumnKind,
+    plan: &crate::adapter::fused::FusedPlan,
+    limits: Limits,
+) -> Result<crate::adapter::fused::Accumulator> {
+    use crate::adapter::fused::{Accumulator, ColumnKind};
+    let mut scanner = FusedScanner::new(chunk, dialect, 0, limits);
+    let mut acc = Accumulator::new(plan);
+    let mut vals: Vec<f64> = Vec::with_capacity(FUSED_BATCH);
+    let mut ivals: Vec<i64> = Vec::with_capacity(FUSED_BATCH);
+    let mut mask: Vec<bool> = Vec::with_capacity(FUSED_BATCH);
+    let mut any_null = false;
+    while let Some((fs, fe, quoted)) = scanner.next_target(idx)? {
+        let raw = &chunk[fs..fe];
+        match kind {
+            ColumnKind::Int => match parse_num_i64(raw, quoted)? {
+                Some(v) => {
+                    ivals.push(v);
+                    mask.push(true);
+                }
+                None => {
+                    ivals.push(0);
+                    mask.push(false);
+                    any_null = true;
+                }
+            },
+            ColumnKind::Float => match parse_num_f64(raw, quoted)? {
+                Some(v) => {
+                    vals.push(v);
+                    mask.push(true);
+                }
+                None => {
+                    vals.push(0.0);
+                    mask.push(false);
+                    any_null = true;
+                }
+            },
+        }
+        if mask.len() >= FUSED_BATCH {
+            let valid = if any_null { Some(&mask[..]) } else { None };
+            match kind {
+                ColumnKind::Int => acc.push_i64(&ivals, valid),
+                ColumnKind::Float => acc.push_f64(&vals, valid),
+            }
+            ivals.clear();
+            vals.clear();
+            mask.clear();
+            any_null = false;
+        }
+    }
+    if !mask.is_empty() {
+        let valid = if any_null { Some(&mask[..]) } else { None };
+        match kind {
+            ColumnKind::Int => acc.push_i64(&ivals, valid),
+            ColumnKind::Float => acc.push_f64(&vals, valid),
+        }
+    }
+    Ok(acc)
+}
+
+/// The bounded parallel scan: split, scan each chunk on the pool, merge in order.
+#[cfg(feature = "parallel")]
+fn parallel_scan(
+    source: &[u8],
+    start: usize,
+    dialect: Dialect,
+    idx: usize,
+    kind: crate::adapter::fused::ColumnKind,
+    plan: &crate::adapter::fused::FusedPlan,
+    limits: Limits,
+) -> Result<crate::adapter::fused::FusedAnswer> {
+    use crate::adapter::fused::Accumulator;
+    let data_len = source.len().saturating_sub(start);
+    let nchunks = (data_len / PARALLEL_CHUNK_TARGET).clamp(1, PARALLEL_MAX_CHUNKS);
+    let bounds = chunk_bounds(source, start, nchunks);
+    let parts: Vec<Result<Accumulator>> = (0..bounds.len() - 1)
+        .into_par_iter()
+        .map(|i| {
+            scan_chunk(
+                &source[bounds[i]..bounds[i + 1]],
+                dialect,
+                idx,
+                kind,
+                plan,
+                limits,
+            )
+        })
+        .collect();
+    // Merge in physical order; `?` surfaces the earliest chunk's error, matching the
+    // serial scan's decline exactly.
+    let mut acc = Accumulator::new(plan);
+    for part in parts {
+        acc.merge(part?);
     }
     Ok(acc.finish(kind))
 }
@@ -1491,5 +1724,158 @@ mod tests {
                 let _ = build_csv_model(&buf, Limits::STRICT);
             }
         }
+    }
+
+    // -- Phase 30.2: the bounded parallel delimited scan ---------------------
+
+    /// A CSV comfortably above `PARALLEL_MIN_BYTES`, with an empty `id` every
+    /// 97th row so the null-validity path is exercised on both columns.
+    #[cfg(feature = "parallel")]
+    fn build_big_csv() -> Vec<u8> {
+        let mut s = String::from("id,score\n");
+        for i in 0..40_000i64 {
+            if i % 97 == 0 {
+                s.push_str(&format!(",{:.2}\n", i as f64 * 0.5 - 9.0));
+            } else {
+                s.push_str(&format!("{},{:.2}\n", i * 7 - 5, i as f64 * 0.5 - 9.0));
+            }
+        }
+        s.into_bytes()
+    }
+
+    #[cfg(feature = "parallel")]
+    #[test]
+    fn parallel_chunks_are_record_aligned() {
+        let src = build_big_csv();
+        let d = dialect(&src);
+        let header_end = Scanner::new(&src, d, Limits::DEFAULT)
+            .next_record(false)
+            .unwrap()
+            .unwrap()
+            .end as usize
+            + 1;
+        let bounds = chunk_bounds(&src, header_end, 8);
+        assert!(bounds.len() >= 2, "expected more than one chunk");
+        assert_eq!(bounds[0], header_end);
+        assert_eq!(*bounds.last().unwrap(), src.len());
+        for w in bounds.windows(2) {
+            assert!(w[0] < w[1]);
+            if w[0] != header_end {
+                // Every interior boundary starts a record: the previous byte is `\n`.
+                assert_eq!(src[w[0] - 1], b'\n');
+            }
+            // A whole number of records: the sub-slice scans cleanly to its end.
+            let mut s = FusedScanner::new(&src[w[0]..w[1]], d, 0, Limits::DEFAULT);
+            while s.next_target(0).unwrap().is_some() {}
+        }
+    }
+
+    #[cfg(feature = "parallel")]
+    #[test]
+    fn parallel_scan_matches_serial() {
+        use crate::adapter::fused::{ColumnKind, FusedMeasure, FusedOp, FusedPlan, FusedPredicate};
+        let src = build_big_csv();
+        let pool = WorkerPool::new(4).unwrap();
+        for (col, kind) in [("id", ColumnKind::Int), ("score", ColumnKind::Float)] {
+            for op in [
+                FusedOp::Count,
+                FusedOp::Sum,
+                FusedOp::Min,
+                FusedOp::Max,
+                FusedOp::Avg,
+            ] {
+                for pred in ["any", "gt:1000"] {
+                    let plan = FusedPlan::new(FusedPredicate::parse(pred).unwrap(), op, 4096);
+                    let serial = fused_scan(&src, col, kind, &plan, Limits::DEFAULT).unwrap();
+                    let par =
+                        fused_scan_with_pool(&src, col, kind, &plan, Limits::DEFAULT, Some(&pool))
+                            .unwrap();
+                    assert_eq!(serial.scanned, par.scanned, "{col}/{}/{pred}", op.name());
+                    assert_eq!(serial.nulls, par.nulls, "{col}/{}/{pred}", op.name());
+                    assert_eq!(serial.matched, par.matched, "{col}/{}/{pred}", op.name());
+                    match (&serial.measure, &par.measure) {
+                        (FusedMeasure::Sum(a), FusedMeasure::Sum(b)) => assert_eq!(a, b),
+                        (FusedMeasure::MinI(a), FusedMeasure::MinI(b)) => assert_eq!(a, b),
+                        (FusedMeasure::MaxI(a), FusedMeasure::MaxI(b)) => assert_eq!(a, b),
+                        (FusedMeasure::Count(a), FusedMeasure::Count(b)) => assert_eq!(a, b),
+                        (FusedMeasure::MinF(a), FusedMeasure::MinF(b)) => assert_eq!(a, b),
+                        (FusedMeasure::MaxF(a), FusedMeasure::MaxF(b)) => assert_eq!(a, b),
+                        (FusedMeasure::Null, FusedMeasure::Null) => {}
+                        // A float sum/avg reassociates across chunk boundaries; it
+                        // stays inside the oracle's 1e-9 relative tolerance.
+                        (FusedMeasure::SumF(a), FusedMeasure::SumF(b)) => {
+                            assert!((a - b).abs() <= 1e-9 * a.abs().max(1.0));
+                        }
+                        (FusedMeasure::Avg(a), FusedMeasure::Avg(b)) => {
+                            assert!((a - b).abs() <= 1e-9 * a.abs().max(1.0));
+                        }
+                        (x, y) => panic!("measure mismatch {x:?} vs {y:?}"),
+                    }
+                }
+            }
+        }
+    }
+
+    #[cfg(feature = "parallel")]
+    #[test]
+    fn parallel_scan_preserves_declines() {
+        use crate::adapter::fused::{ColumnKind, FusedOp, FusedPlan, FusedPredicate};
+        // A large CSV whose 10_000th data row carries a non-numeric `id`.
+        let mut s = String::from("id,score\n");
+        for i in 0..40_000i64 {
+            if i == 10_000 {
+                s.push_str("oops,0.0\n");
+            } else {
+                s.push_str(&format!("{},{:.1}\n", i, i as f64));
+            }
+        }
+        let src = s.into_bytes();
+        let pool = WorkerPool::new(4).unwrap();
+        let plan = FusedPlan::new(FusedPredicate::parse("any").unwrap(), FusedOp::Sum, 4096);
+        let serial = fused_scan(&src, "id", ColumnKind::Int, &plan, Limits::DEFAULT);
+        let par = fused_scan_with_pool(
+            &src,
+            "id",
+            ColumnKind::Int,
+            &plan,
+            Limits::DEFAULT,
+            Some(&pool),
+        );
+        assert!(serial.is_err());
+        let e = par.unwrap_err();
+        assert_eq!(e.to_string(), serial.unwrap_err().to_string());
+    }
+
+    #[cfg(feature = "parallel")]
+    #[test]
+    fn parallel_precondition_falls_back_on_quotes() {
+        use crate::adapter::fused::{ColumnKind, FusedOp, FusedPlan, FusedPredicate};
+        // Quoted fields in the data region ⇒ the parallel precondition is false.
+        let mut s = String::from("id,score\n");
+        for i in 0..40_000i64 {
+            s.push_str(&format!("\"{}\",{:.1}\n", i, i as f64));
+        }
+        let src = s.into_bytes();
+        let d = dialect(&src);
+        let header_end = Scanner::new(&src, d, Limits::DEFAULT)
+            .next_record(false)
+            .unwrap()
+            .unwrap()
+            .end as usize
+            + 1;
+        assert!(!parallel_applicable(&src, d, header_end, FusedOp::Count));
+        let pool = WorkerPool::new(4).unwrap();
+        let plan = FusedPlan::new(FusedPredicate::parse("any").unwrap(), FusedOp::Count, 4096);
+        let serial = fused_scan(&src, "id", ColumnKind::Int, &plan, Limits::DEFAULT).unwrap();
+        let par = fused_scan_with_pool(
+            &src,
+            "id",
+            ColumnKind::Int,
+            &plan,
+            Limits::DEFAULT,
+            Some(&pool),
+        )
+        .unwrap();
+        assert_eq!(serial, par);
     }
 }
