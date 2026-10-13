@@ -2,9 +2,63 @@
 
 All notable changes are recorded here. The format is pre-1.0 and provisional.
 
+## [0.1.0-alpha.43] — Phase 30.5: the standing negatives
+
+- **Phase 30.5 attacks the standing negatives Phase 30 recorded** and closes the
+  phase (**30.1–30.5 now shipped**). No capability, exactness, or on-disk format
+  change: every court still ends in `materialize == source`. Receipt:
+  [`evidence/campaigns/2026-10-13-realformats-stratified-v2-889b8952`](../../evidence/campaigns/2026-10-13-realformats-stratified-v2-889b8952/);
+  results [phase-30-results.md](../phases/phase-30-results.md).
+- **Detection findings 15 → 10 (agreements 274 → 279; always 308/308
+  byte-exact).** The stratified real-world population **v2** court was re-run and
+  re-sealed. Five **`asciidoc → rst`** misclassifications are **fixed** by a
+  narrow, conservative predicate: `asciidoc::has_asciidoc_only_mark` admits an
+  **AsciiDoc-only** mark that reST cannot produce (a column-0
+  preprocessor/conditional directive `ifdef::`/`ifndef::`/`ifeval::`/`endif::`/
+  `include::` with a bracketed tail, or a `[#anchor]` block anchor), and
+  `rst::looks_like_other` now **declines** such a source — with **no detector
+  reorder** and no change to a genuine reST field list (regression test
+  `asciidoc::tests::detects_asciidoc_only_marks_and_declines_their_negations`;
+  `src/adapter/asciidoc.rs`, `src/adapter/rst.rs`). The **remaining 10** stay
+  **recorded with reasons**: **CBOR** declines a lone 2-byte scalar (below the
+  structural bar) and a 512-level nesting (above the deliberate `max_cbor_depth`
+  cap); a **Word 6.0** `.doc` FIB (`wIdent` 0xA5DC, `nFib` 0x0065) is outside the
+  Word 97–2003 `nFib` subset and stays at the CFBF layer; an **mbox** `.eml` whose
+  `multipart/report` boundary is folded and truncated; the **HPC** log has neither
+  a timestamp nor a level; the **OpenStack** log is claimed by the load-bearing
+  `config` detector and the **Windows** log by the CSV detector (both precedence,
+  not reordered); a **truncated** `.pptx` with no EOCD/central directory; and the
+  **reST→Markdown** / **YAML→config** precedence cases (`whatsnew-3.3.rst`,
+  `project-updater.yml`).
+- **PPT `recInstance ≥ 4` "other" lists are now named and selectable.** The legacy
+  PPT list arena (`--ppt-list`) now names every `SlideListWithText` container
+  unambiguously and selects the non-conformant `other:<recInstance>` lists
+  (`recInstance >= 4`, which MS-PPT does not define) instead of leaving them
+  unaddressable — `ppt::slide_list_label` / `ppt::slide_list_from_name`
+  round-trip (tests in `tests/ppt_adapter.rs`); the documented
+  `slides`/`masters`/`notes`/`handout` projection (recInstance 0–3) is unchanged.
+- **Arrow legacy (pre-0.15) no-continuation stream framing is fixed end-to-end.**
+  The bare legacy framing — a 4-byte little-endian metadata length with **no
+  `0xFFFFFFFF` continuation marker**, a first `Schema` message, and a 4-byte zero
+  end-of-stream — is now claimed by the **detector** *and* accepted by the bounded
+  **parser**, conservatively gated on all-zero metadata-to-body padding and an
+  end-of-stream marker that is the **exact end of the source**; near-misses still
+  decline (regression tests `arrow_adapter::legacy_stream_framing_is_detected_and_built`,
+  `arrow_adapter::legacy_stream_near_misses_decline`; `src/adapter/arrow.rs`).
+- **Legacy subset edges recorded** (typed unclaimed surfaces, not defects): the DOC
+  story→section mapping, textbox anchors, and piece-local `doc-find` remain out of
+  the bounded subset.
+- **Tests.** `--all-features`: **1574 tests / 0 failures**; the **default-feature**
+  suite: **562 pass / 0 fail**. `cargo fmt --all --check` and
+  `cargo clippy --all-targets --all-features -- -D warnings` are clean.
+- **Framing unchanged.** VOLE is **still not a faster general-purpose engine**; the
+  Phase-29/30 wins stay scoped (large Arrow/Parquet scans, the predicate-count
+  question, equal-work CSV), with the recorded losses beside them.
+
 ## [0.1.0-alpha.42] — default-feature build, packaging, and test-suite repair
 
-- **Maintenance release.** `0.1.0-alpha.42` is the current release; the
+- **Maintenance release.** `0.1.0-alpha.42` was the maintenance release before
+  `0.1.0-alpha.43` (above); the
   Phase-30.2–30.4 mechanisms shipped in [`0.1.0-alpha.41`] (below). This release
   makes the **default feature set** build, package, and test cleanly:
   - `src/field/pkgread.rs`: the part-relationships clause referenced
@@ -98,9 +152,10 @@ All notable changes are recorded here. The format is pre-1.0 and provisional.
   (Parquet), charged once per observation. Exactness **4/4**; ADR-0060 untouched. New
   court `tools/phase30-4-coarse-reading-court.sh`; receipt
   `2026-10-13-phase30-4-coarse-reading-6764974f` (control Phase 29.2).
-- **30.5 — standing negatives — PENDING.** The **15 detection findings**, the
-  **legacy bounded subsets**, and the **legacy Arrow (pre-0.15) no-continuation
-  framing** remain recorded; not started (no implementation, measurement, or claim).
+- **30.5 — standing negatives — shipped in [`0.1.0-alpha.43`] (above).** The
+  **15 detection findings**, the **legacy bounded subsets**, and the **legacy Arrow
+  (pre-0.15) no-continuation framing** were recorded here; at this point 30.5 was
+  not started (no implementation, measurement, or claim).
 
 ## [0.1.0-alpha.40] — Phase 30.1: large-input fused kernels — *unreleased*
 

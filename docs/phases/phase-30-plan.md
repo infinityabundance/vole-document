@@ -1,10 +1,10 @@
 # Phase 30 — Close the measured gaps (large-input kernels, reading requests, index cost, framing)
 
-> **Status:** 30.1–30.4 **SHIPPED**; 30.5 **PENDING** — the gaps are addressed and
-> court-verified; the plan's original three-gap partition was re-scoped mid-phase
-> (the residual CSV loss was carved out as its own subphase, shifting the reading
-> request and the standing negatives one slot later). Branch `phase30`. Results:
-> [phase-30-results.md](phase-30-results.md). Phase 29 produced the first
+> **Status:** 30.1–30.5 **SHIPPED** — the phase is complete; every gap is addressed
+> and court-verified. The plan's original three-gap partition was re-scoped
+> mid-phase (the residual CSV loss was carved out as its own subphase, shifting the
+> reading request and the standing negatives one slot later). Branch `phase30`.
+> Results: [phase-30-results.md](phase-30-results.md). Phase 29 produced the first
 > generalized, court-verified execution wins but left four recorded gaps. Phase 30
 > attacks them in order, each with its own falsifiable court. Same rule as every
 > subphase: exactness is the invariant, negatives are recorded, no claim without
@@ -18,9 +18,13 @@
 > subphase, and the two remaining original gaps follow: **30.2** (fused CSV past
 > pyarrow on **equal** work) **shipped**; **30.3** (incremental index cost)
 > **shipped** (`VOLEINC2`, sealed **27.29 % → 7.31 %**); **30.4** (coarse **reading**
-> requests) **shipped** (the reading request narrows **3/4** formats, from 1/4).
-> **30.5 (standing negatives) remains PENDING** — no implementation, measurement,
-> or claim.
+> requests) **shipped** (the reading request narrows **3/4** formats, from 1/4);
+> **30.5 (standing negatives) shipped** — detection findings **15 → 10** (the five
+> `asciidoc → rst` fixes via the narrow `asciidoc::has_asciidoc_only_mark` predicate
+> and `rst::looks_like_other`; the remaining 10 recorded with reasons), always
+> **308/308 byte-exact** (agreements **274 → 279**), the PPT `recInstance ≥ 4`
+> "other" lists now named/selectable, and the legacy (pre-0.15) Arrow
+> no-continuation stream framing fixed end-to-end.
 
 ## The gaps (from the Phase-29 results)
 
@@ -41,7 +45,7 @@
 30.2  Fused CSV past pyarrow      — SHIPPED: read-inclusive (parse + aggregate); fused beats pyarrow on equal work
 30.3  Incremental index cost      — SHIPPED: VOLEINC2 sealed 27.29% -> 7.31% (<=10%); correctness held
 30.4  Coarse index for reading    — SHIPPED: serve the natural reading request from coarse member spans (3/4 formats)
-30.5  Standing negatives          — PENDING: detection findings, legacy subset edges, Arrow legacy framing
+30.5  Standing negatives          — SHIPPED: detection findings 15 -> 10 (asciidoc-only mark), the remaining 10 recorded; PPT other lists named; Arrow legacy framing fixed
 ```
 
 ## Acceptance (per subphase, unchanged)

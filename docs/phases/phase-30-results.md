@@ -1,4 +1,4 @@
-# Phase 30 results — close the measured gaps (large-input kernels, fused CSV, incremental index, coarse reading; standing negatives pending)
+# Phase 30 results — close the measured gaps (large-input kernels, fused CSV, incremental index, coarse reading; standing negatives shipped)
 
 Branch `phase30`. Phase 30 attacks, in order, the four gaps Phase 29's own report
 named. The frozen contract is [phase-30-plan.md](phase-30-plan.md). Same rule as
@@ -10,7 +10,7 @@ without evidence.
 30.2  Fused CSV past pyarrow      — SHIPPED (this document)
 30.3  Incremental index cost      — SHIPPED (this document)
 30.4  Coarse index for reading    — SHIPPED (this document)
-30.5  Standing negatives          — PENDING
+30.5  Standing negatives          — SHIPPED (this document)
 ```
 
 **Outcome in one line.** 30.1 turned the recorded Phase-29.1 large-input loss into
@@ -25,7 +25,12 @@ work** (paired median **0.362**, 95 % CI [0.312, 0.392], ≈2.8×, 49/0/1; the c
 re-run read 0.342), **30.3** shrinks the incremental
 observation index to the gate's **≤10 %** bar (**27.29 % → 7.31 %**, scoped and
 honest), and **30.4** turns the coarse index into a real **reading**-request win in
-**3/4** formats (**1/4** in Phase 29.2). **30.5 (standing negatives) is not started.**
+**3/4** formats (**1/4** in Phase 29.2). **30.5 (standing negatives) shipped** —
+the five **`asciidoc → rst`** detection findings fixed by a narrow, reST-safe
+predicate (findings **15 → 10**, agreements **274 → 279**, always **308/308
+byte-exact**; the remaining **10** recorded with reasons), the PPT `recInstance ≥ 4`
+"other" lists now named/selectable, and the **legacy (pre-0.15) Arrow
+no-continuation stream framing fixed end-to-end**.
 
 ## 30.1 — Large-input fused kernels
 
@@ -297,13 +302,60 @@ on its own (the whole-source read in `parquet_source()` remains).
 directory) and **201 B** for Parquet; it is charged once per observation in
 `closure`.
 
-## 30.5 — Standing negatives (pending)
+## 30.5 — Standing negatives (shipped)
 
-The **15 detection findings**, the **legacy bounded subsets**, and the **legacy
-Arrow (pre-0.15) no-continuation framing** remain recorded. 30.5 is to attack them
-and is **not started** — no implementation, measurement, or claim. They stay in the
-recorded-negatives ledger ([roadmap](../project/roadmap.md),
-[status](../project/status.md)).
+30.5 attacks the standing negatives Phase 30 recorded. **Exactness is unchanged**:
+every sample still closes byte-exactly (`materialize == source`).
+
+**Detection — findings 15 → 10, agreements 274 → 279, always 308/308 byte-exact.**
+The stratified real-world population **v2** court was re-run and re-sealed
+(`2026-10-13-realformats-stratified-v2-889b8952`). Five **`asciidoc → rst`**
+misclassifications are **fixed** by a narrow, conservative predicate: a new
+`asciidoc::has_asciidoc_only_mark` (`src/adapter/asciidoc.rs`) admits an
+**AsciiDoc-only** mark reST cannot produce — a column-0 preprocessor/conditional
+directive (`ifdef::`/`ifndef::`/`ifeval::`/`endif::`/`include::`) with a bracketed
+tail, or a `[#anchor]` block anchor — and `rst::looks_like_other`
+(`src/adapter/rst.rs`) now **declines** such a source, so it falls through to the
+AsciiDoc detector. There is **no detector reorder** and no change to a genuine reST
+field list (regression test
+`asciidoc::tests::detects_asciidoc_only_marks_and_declines_their_negations`). The
+**remaining 10 findings** stay recorded with reasons:
+
+| finding | reason |
+|---|---|
+| `cbor-data-integer.cbor` | a lone 2-byte scalar (`18 2a`) below the deliberate structural bar |
+| `cbor-rfc8949-good.cbor` | a well-formed map nesting **512** levels, above the deliberate `max_cbor_depth` DoS cap (256) |
+| `poi-document-Bug60942b.doc` | a **Word 6.0** FIB (`nFib` 0x0065) outside the Word 97–2003 subset — stays at the CFBF layer |
+| `cpython-msg-25.eml` | an **mbox** whose `multipart/report` boundary is folded and truncated |
+| `loghub-HPC-HPC_2k.log` | a record with **no timestamp and no level** — not a log-stream line |
+| `loghub-OpenStack-OpenStack_2k.log` | claimed by the load-bearing `config` detector (precedence; not reordered) |
+| `loghub-Windows-Windows_2k.log` | claimed by the CSV detector (precedence; not reordered) |
+| `poi-Divino.pptx` | **truncated** — no EOCD / central directory, so not a valid OPC package |
+| `cpython-whatsnew-3.3.rst` | **reST → Markdown** precedence (the over+underlined title is a Markdown thematic break) |
+| `cpython-workflows-project-updater.yml` | **YAML → config** precedence (a `${{ … }}` expression is outside the bounded YAML subset) |
+
+**PPT `recInstance ≥ 4` "other" lists are now named and selectable.** The legacy PPT
+list arena (`--ppt-list`) names every `SlideListWithText` container unambiguously and
+selects the non-conformant `other:<recInstance>` lists (`recInstance >= 4`, which
+MS-PPT does not define) it previously left unaddressable —
+`ppt::slide_list_label` / `ppt::slide_list_from_name` round-trip (`src/adapter/ppt.rs`;
+tests in `tests/ppt_adapter.rs`); the documented `slides`/`masters`/`notes`/`handout`
+projection (recInstance 0–3) is unchanged.
+
+**Arrow legacy (pre-0.15) no-continuation stream framing is fixed end-to-end.** The
+bare legacy framing — a 4-byte little-endian metadata length with **no `0xFFFFFFFF`
+continuation marker**, a first `Schema` message, and a 4-byte zero end-of-stream — is
+now claimed by the **detector** *and* accepted by the bounded **parser**
+(`src/adapter/arrow.rs`), conservatively gated on all-zero metadata-to-body padding
+and an end-of-stream marker that is the **exact end of the source**; near-misses
+still decline (regression tests
+`arrow_adapter::legacy_stream_framing_is_detected_and_built`,
+`arrow_adapter::legacy_stream_near_misses_decline`).
+
+**Legacy subset edges** (typed unclaimed surfaces, not defects): the DOC
+story→section mapping, textbox anchors, and piece-local `doc-find` remain out of the
+bounded subset — recorded in the negatives ledger
+([roadmap](../project/roadmap.md), [status](../project/status.md)).
 
 ## Verdict
 
@@ -337,7 +389,17 @@ recorded-negatives ledger ([roadmap](../project/roadmap.md),
   (**~253× / ~264×**), beating page-SQLite's **20.6 KB**; PDF unchanged; **Parquet
   reading is still 0.50×** (needs a range source through the Parquet decoders —
   recorded). Exactness **4/4**; ADR-0060 untouched.
-- **30.5 — PENDING.** Standing negatives: no implementation, measurement, or claim.
+- **30.5 — SHIPPED: the standing negatives are attacked and the phase is closed.**
+  Detection findings **15 → 10** (agreements **274 → 279**, always **308/308
+  byte-exact**): the five `asciidoc → rst` fixes via the narrow
+  `asciidoc::has_asciidoc_only_mark` predicate + `rst::looks_like_other`, with no
+  detector reorder; the **remaining 10 recorded with reasons** (CBOR lone scalar /
+  512-level depth; Word 6.0 FIB; mbox `.eml`; HPC/OpenStack/Windows log precedence;
+  truncated `.pptx`; reST→Markdown / YAML→config precedence). The PPT
+  `recInstance ≥ 4` "other" lists are now named/selectable (`other:<recInstance>`),
+  and the **legacy (pre-0.15) Arrow no-continuation stream framing is fixed
+  end-to-end** (detector + bounded parser). Exactness unchanged (**308/308**);
+  `--all-features` **1574 tests / 0 failures**, default-feature **562 pass / 0 fail**.
 
 **Framing (recorded plainly).** VOLE is **still not a faster general-purpose
 engine**. What Phase 29–30 add is a set of **court-verified, scoped wins**: against
