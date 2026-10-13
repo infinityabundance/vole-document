@@ -2266,9 +2266,9 @@ struct FieldArgs {
     #[cfg(feature = "ppt")]
     ppt_find: Option<String>,
     /// `--ppt-list NAME`: one `SlideListWithText` list — `slides`, `masters`, `notes`,
-    /// or `handout` — with its ordered `SlidePersistAtom` slides and their text runs
-    /// (exact spans + decoded text). An absent or empty list is a typed empty answer
-    /// (Phase 27.2).
+    /// or `handout`, or a non-conformant `other:<recInstance>` list (`recInstance ≥ 4`)
+    /// — with its ordered `SlidePersistAtom` slides and their text runs (exact spans +
+    /// decoded text). An absent or empty list is a typed empty answer (Phase 27.2).
     #[cfg(feature = "ppt")]
     ppt_list: Option<String>,
     /// `--msg-summary`: the legacy Outlook message (`.msg`, MS-OXMSG) header and
@@ -4772,7 +4772,7 @@ fn field_selector(out: &FieldArgs) -> Result<Selector> {
                 vole_document::adapter::ppt::slide_list_from_name(name).ok_or_else(|| {
                     Error::usage(format!(
                         "unknown --ppt-list {name:?}; expected one of slides, masters, notes, \
-                         handout"
+                         handout, or other:<recInstance> (recInstance >= 4)"
                     ))
                 })?;
             chosen.push(Selector::PptList { instance });

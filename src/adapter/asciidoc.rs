@@ -579,6 +579,14 @@ pub fn detect(source: &[u8], limits: Limits) -> bool {
     if looks_like_other(source, limits) {
         return false;
     }
+    // An AsciiDoc-only **preprocessor/conditional** line or **block anchor** is a
+    // signal reST and Markdown cannot produce (reST has no column-0 `ifdef::`/
+    // `include::` and no `[#anchor]`). This admits attribute-only / locale / glossary
+    // AsciiDoc pages whose `:name: value` attribute entries are otherwise
+    // syntactically indistinguishable from reST field lists.
+    if has_asciidoc_only_mark(source) {
+        return true;
+    }
     // A document that is *only* a list of AsciiDoc cross-reference macro calls
     // (`* xref:target[]`) is an AsciiDoc-only signal that reST and Markdown cannot
     // produce (they have no `xref:target[…]` call syntax). This admits AsciiDoc
@@ -616,6 +624,43 @@ fn is_xref_macro_list(source: &[u8], limits: Limits) -> bool {
         }
     }
     items >= 2
+}
+
+/// Whether `source` carries an **AsciiDoc-only** mark: a column-0 AsciiDoc
+/// **preprocessor/conditional** directive (`ifdef::`/`ifndef::`/`ifeval::`/
+/// `endif::`/`include::`, each with a bracketed tail) or a column-0 **block
+/// anchor** (`[#id]`). No valid reStructuredText or Markdown document produces
+/// either form (reST directives are `.. name::` and reST field lists are `:name:`;
+/// neither language has `[#…]` block anchors), so this is a specific, reST- and
+/// Markdown-safe distinguishing mark for AsciiDoc. It is deliberately narrow: it
+/// requires the construct to begin at column 0 and be syntactically complete.
+pub fn has_asciidoc_only_mark(source: &[u8]) -> bool {
+    for raw in source.split(|&b| b == b'\n') {
+        let line = raw.strip_suffix(b"\r").unwrap_or(raw);
+        if line.is_empty() || matches!(line.first(), Some(b' ' | b'\t')) {
+            continue;
+        }
+        // A block anchor `[#id]`: an AsciiDoc-only block-level mark.
+        if line.starts_with(b"[#") && line.ends_with(b"]") {
+            return true;
+        }
+        // A preprocessor/conditional directive with a bracketed tail.
+        for kw in [
+            b"ifdef::".as_slice(),
+            b"ifndef::".as_slice(),
+            b"ifeval::".as_slice(),
+            b"endif::".as_slice(),
+            b"include::".as_slice(),
+        ] {
+            if line.starts_with(kw)
+                && let Some(open) = line.iter().position(|&b| b == b'[')
+                && line[open..].ends_with(b"]")
+            {
+                return true;
+            }
+        }
+    }
+    false
 }
 
 /// Whether one line is a list item whose whole text is an `xref:<target>[…]` call.
@@ -2115,6 +2160,31 @@ mod tests {
         assert!(!detect(b"", l));
         // A lone `= text` line (no further block) is too weak to claim.
         assert!(!detect(b"= lonely\n", l));
+    }
+
+    #[test]
+    fn detects_asciidoc_only_marks_and_declines_their_negations() {
+        let l = Limits::DEFAULT;
+        // A page carrying an AsciiDoc-only block anchor is claimed; reST/Markdown
+        // cannot produce `[#…]` block anchors.
+        assert!(detect(b"[#embed]\n== Embed\n", l));
+        assert!(has_asciidoc_only_mark(
+            b"ifdef::listing-caption[:listing-caption: List]\n"
+        ));
+        assert!(has_asciidoc_only_mark(b"ifndef::icons[]\n"));
+        assert!(has_asciidoc_only_mark(b"endif::[]\n"));
+        assert!(has_asciidoc_only_mark(b"include::partial$success.adoc[]\n"));
+        assert!(has_asciidoc_only_mark(b"[#embed]\n== Embed\n"));
+        // A reST field list without an AsciiDoc-only mark is not claimed by AsciiDoc
+        // (reST keeps it).
+        assert!(!has_asciidoc_only_mark(b":author: Jane\n:version: 1\n"));
+        // A bare `include`/`ifdef` word without the `::`+bracketed-tail grammar is
+        // not an AsciiDoc mark; prose mentioning them stays unclaimed.
+        assert!(!has_asciidoc_only_mark(
+            b"we include:: files in the build\n"
+        ));
+        assert!(!has_asciidoc_only_mark(b"ifdef without a directive tail\n"));
+        assert!(!detect(b"just some prose\nabout include:: paths\n", l));
     }
 
     #[test]

@@ -62,6 +62,30 @@
 //! total that disagrees with the piece table) is admitted by detection (its
 //! whole-source exact leaf is unaffected) and its derived model then **declines typed**
 //! ([`crate::ErrorClass::InvalidDocStructure`]). Never a panic, never a guess.
+//!
+//! ## What stays out of the subset (recorded, Phase 30.5)
+//!
+//! Three MS-DOC surfaces are **deliberately outside** this bounded adapter and remain
+//! recorded rather than guessed:
+//!
+//! * the **story → section mapping** — which header/footer *story* (`ccpFtn`,
+//!   `ccpHdd`, `ccpTxbx`, …) a given CP range belongs to is defined not by the `ccp*`
+//!   cumulative counts alone (those give a *sectioned* CP space, which this adapter
+//!   exposes) but by the `PlcfHdd`/`PlcfBteChpx` story tables in the table stream,
+//!   which this adapter does not model. The sectioned text is exact; the *story* label
+//!   of a header/footer CP is not assigned.
+//! * the **textbox / header-textbox anchors** — the `PlcfTxbxHdr`/`PlcfTxbxBxftn`
+//!   anchor tables (and the `Spa`/`Txbx` records that bind a textbox CP to its shape)
+//!   are not modelled, so textbox text is exposed as its section's CP range but not
+//!   bound to an anchor.
+//! * **piece-local / section-scoped `doc-find`** — `doc-find` is a **document-level**
+//!   substring search over the decoded text **by contract**; it reports decoded-text
+//!   matches with their CP/byte spans and is not scoped to a piece or a section.
+//!   Section-scoped search is available by observing `--doc-section NAME` and searching
+//!   the returned text at the call site.
+//!
+//! Each is a *typed decline or an explicitly unclaimed surface*, never a guess; the
+//! exact leaf (`materialize == source`) is unaffected.
 
 use crate::error::{Error, Result};
 use crate::limits::Limits;

@@ -535,6 +535,16 @@ fn looks_like_other(source: &[u8], limits: Limits) -> bool {
     if crate::adapter::markdown::detect(source, limits) {
         return true;
     }
+    // A document carrying an **AsciiDoc-only** preprocessor/conditional directive or
+    // block anchor must not be claimed by reST: AsciiDoc attribute entries are
+    // syntactically reST field lists, but an AsciiDoc-only mark breaks the tie
+    // conservatively (see `asciidoc::has_asciidoc_only_mark`). This does not reorder
+    // the detectors; it only lets a reST-shaped source that is *provably* AsciiDoc fall
+    // through to the AsciiDoc detector.
+    #[cfg(feature = "asciidoc")]
+    if crate::adapter::asciidoc::has_asciidoc_only_mark(source) {
+        return true;
+    }
     false
 }
 

@@ -291,7 +291,7 @@ use crate::adapter::ppt::{
     PptList, PptModel, PptRun, PptSlide, canonical_text as ppt_canonical_text,
     field_name as ppt_field_name, find as ppt_find_matches,
     record_type_name as ppt_record_type_name, run_kind_name as ppt_run_kind_name,
-    slide_list_name as ppt_slide_list_name,
+    slide_list_label as ppt_slide_list_label,
 };
 #[cfg(feature = "pptx")]
 use crate::adapter::pptx::{
@@ -2949,7 +2949,7 @@ impl Selector {
             Selector::PptFind { pattern } => format!("ppt-find:{pattern}"),
             #[cfg(feature = "ppt")]
             Selector::PptList { instance } => {
-                format!("ppt-list:{}", ppt_slide_list_name(*instance))
+                format!("ppt-list:{}", ppt_slide_list_label(*instance))
             }
             #[cfg(feature = "msg")]
             Selector::MsgSummary => "msg-summary".to_string(),
@@ -15999,7 +15999,7 @@ impl<S: SeedStore> Ctx<'_, S> {
             index,
             slide.persist_id_ref,
             slide.c_texts,
-            ppt_slide_list_name(slide.list_instance),
+            ppt_slide_list_label(slide.list_instance),
             slide.sp_span.0,
             slide.sp_span.1,
             slide.run_start,
@@ -16157,7 +16157,7 @@ impl<S: SeedStore> Ctx<'_, S> {
     fn ppt_list(&mut self, req: &ObserveRequest, instance: u16) -> Result<FieldAnswer> {
         let (model, model_id) = self.ppt_model()?;
         let (_, root) = self.ppt_source()?;
-        let name = ppt_slide_list_name(instance);
+        let name = ppt_slide_list_label(instance);
         let span = model.list(instance).map(|l| l.span);
         let list = model.list(instance);
         let slides_n = list.map(|l| l.slides.len()).unwrap_or(0);
@@ -16181,7 +16181,7 @@ impl<S: SeedStore> Ctx<'_, S> {
                 AnswerValue::Text(text)
             }
             _ => {
-                let json = Self::ppt_list_json(name, instance, &model, &text, text_units, empty);
+                let json = Self::ppt_list_json(&name, instance, &model, &text, text_units, empty);
                 if json.len() as u64 > req.budget.max_output_bytes {
                     return Err(Error::resource_limit(format!(
                         "ppt list descriptor exceeded the {}-byte budget",

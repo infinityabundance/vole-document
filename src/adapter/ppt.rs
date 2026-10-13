@@ -177,12 +177,36 @@ pub const fn slide_list_name(instance: u16) -> &'static str {
     }
 }
 
+/// The **unambiguous** label for a `SlideListWithText` instance: a stable name for
+/// the four conformant instances (`slides`/`masters`/`notes`/`handout`) and
+/// `other:<recInstance>` for a non-conformant one (`recInstance ≥ 4`, which MS-PPT
+/// does not define). Unlike [`slide_list_name`], this label round-trips through
+/// [`slide_list_from_name`], so an individual `other` list can be selected and is
+/// named unambiguously even when several are present.
+pub fn slide_list_label(instance: u16) -> String {
+    match instance {
+        SLIDE_LIST_SLIDES | SLIDE_LIST_MASTER | SLIDE_LIST_NOTES | SLIDE_LIST_HANDOUT => {
+            slide_list_name(instance).to_string()
+        }
+        other => format!("other:{other}"),
+    }
+}
+
 /// Resolve a `SlideListWithText` instance by its stable name (`slides`, `masters`,
-/// `notes`, `handout`).
+/// `notes`, `handout`) or its unambiguous `other:<recInstance>` label (`recInstance`
+/// `≥ 4`).
 pub fn slide_list_from_name(name: &str) -> Option<u16> {
-    SLIDE_LIST_KINDS
+    if let Some(i) = SLIDE_LIST_KINDS
         .into_iter()
         .find(|&i| slide_list_name(i) == name)
+    {
+        return Some(i);
+    }
+    // A non-conformant `other:<recInstance>` list. The list arena materializes every
+    // `SlideListWithText` container losslessly, so an `other` list is addressable by
+    // its raw `recInstance` even though MS-PPT defines only 0–3.
+    let n: u16 = name.strip_prefix("other:")?.parse().ok()?;
+    (n >= 4).then_some(n)
 }
 
 /// The stable match-field name.
@@ -1203,6 +1227,16 @@ mod tests {
         assert_eq!(slide_list_from_name("masters"), Some(SLIDE_LIST_MASTER));
         assert_eq!(slide_list_from_name("handout"), Some(SLIDE_LIST_HANDOUT));
         assert_eq!(slide_list_from_name("nope"), None);
+        // Non-conformant `other:<recInstance>` lists round-trip unambiguously.
+        assert_eq!(slide_list_label(SLIDE_LIST_SLIDES), "slides");
+        assert_eq!(slide_list_label(4), "other:4");
+        assert_eq!(slide_list_label(4095), "other:4095");
+        assert_eq!(slide_list_from_name("other:4"), Some(4));
+        assert_eq!(slide_list_from_name("other:4095"), Some(4095));
+        // The conformant instances are never addressed through the `other:` spelling.
+        assert_eq!(slide_list_from_name("other:1"), None);
+        assert_eq!(slide_list_from_name("other:x"), None);
+        assert_eq!(slide_list_from_name("other:"), None);
     }
 
     #[test]

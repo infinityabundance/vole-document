@@ -841,26 +841,61 @@ impl<'a> Msg<'a> {
     }
 }
 
-/// Parse one encapsulated message at `offset` (the continuation token).
+/// The two Arrow IPC **stream framings**.
+///
+/// * [`Framing::Continuation`] — the modern (Arrow ≥ 0.15) encapsulated-message
+///   framing: an `0xFFFFFFFF` continuation token, a little-endian `int32` metadata
+///   length, the metadata, padding to an 8-byte boundary, then the body.
+/// * [`Framing::Legacy`] — the pre-0.15 framing: a bare little-endian `int32`
+///   metadata length (no continuation token), the metadata, padding to 8 bytes, then
+///   the body. The end of the stream is a 4-byte zero metadata length.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+enum Framing {
+    Continuation,
+    Legacy,
+}
+
+/// Parse one encapsulated message at `offset` under the **continuation** framing.
 fn parse_msg<'a>(source: &'a [u8], offset: usize, limits: Limits) -> Result<Msg<'a>> {
+    read_msg(source, offset, Framing::Continuation, limits)
+}
+
+/// Parse one encapsulated message at `offset` under `framing` (the continuation
+/// token, or a bare metadata length for the legacy pre-0.15 framing).
+fn read_msg<'a>(
+    source: &'a [u8],
+    offset: usize,
+    framing: Framing,
+    limits: Limits,
+) -> Result<Msg<'a>> {
     let n = source.len();
-    if offset.checked_add(8).map(|e| e > n).unwrap_or(true) {
+    let prefix = match framing {
+        Framing::Continuation => 8usize,
+        Framing::Legacy => 4usize,
+    };
+    if offset.checked_add(prefix).map(|e| e > n).unwrap_or(true) {
         return Err(corrupt("message prefix is out of bounds"));
     }
-    let cont = u32::from_le_bytes([
-        source[offset],
-        source[offset + 1],
-        source[offset + 2],
-        source[offset + 3],
-    ]);
-    if cont != CONTINUATION {
-        return Err(corrupt("missing message continuation marker"));
-    }
+    let meta_start = match framing {
+        Framing::Continuation => {
+            let cont = u32::from_le_bytes([
+                source[offset],
+                source[offset + 1],
+                source[offset + 2],
+                source[offset + 3],
+            ]);
+            if cont != CONTINUATION {
+                return Err(corrupt("missing message continuation marker"));
+            }
+            offset + 8
+        }
+        Framing::Legacy => offset + 4,
+    };
     let meta_len = u32::from_le_bytes([
-        source[offset + 4],
-        source[offset + 5],
-        source[offset + 6],
-        source[offset + 7],
+        source[meta_start - 4],
+        source[meta_start - 3],
+        source[meta_start - 2],
+        source[meta_start - 1],
     ]) as usize;
     if meta_len == 0 {
         return Err(corrupt("empty message metadata"));
@@ -871,7 +906,6 @@ fn parse_msg<'a>(source: &'a [u8], offset: usize, limits: Limits) -> Result<Msg<
             limits.max_arrow_metadata_bytes
         )));
     }
-    let meta_start = offset + 8;
     let meta_end = meta_start
         .checked_add(meta_len)
         .ok_or_else(|| corrupt("message metadata overflows"))?;
@@ -1354,18 +1388,20 @@ fn make_leaf(f: &FieldNode, element: u32, base: i64) -> LeafColumn {
 ///   `int32` footer length consistent with the file length (the footer region
 ///   begins no earlier than the 8-byte magic+padding prefix); or
 /// * the **stream** format — a coherent sequence of encapsulated messages:
-///   a continuation-marked framing `Schema` message first (whose FlatBuffer
-///   metadata parses under the bounded reader), then well-formed
-///   `RecordBatch`/`DictionaryBatch` messages, ending in an end-of-stream marker.
-///   This is the **bare, magic-less** framing, and also the historical
-///   magic+padding-prefixed form (the messages then begin at the 8-byte prefix).
+///   a framing `Schema` message first (whose FlatBuffer metadata parses under the
+///   bounded reader), then well-formed `RecordBatch`/`DictionaryBatch` messages,
+///   ending in an end-of-stream marker. This is the **bare, magic-less** framing,
+///   and also the historical magic+padding-prefixed form (the messages then begin at
+///   the 8-byte prefix).
 ///
-/// The legacy pre-0.15 **no-continuation** stream framing (a bare `int32` metadata
-/// size with no `0xFFFFFFFF` token) is deliberately **declined**: a magic-less
-/// source has no other anchor, so treating an arbitrary leading word as a length
-/// would widen the false-positive surface, and the same build's stream parser only
-/// admits the continuation form. A random `0xFFFFFFFF`-prefixed blob, a truncated
-/// stream, and a stream whose first message is not a `Schema` all decline.
+/// Two stream framings are admitted: the modern (Arrow ≥ 0.15) **continuation**
+/// framing, and the legacy pre-0.15 **no-continuation** framing (a bare `int32`
+/// metadata length with no `0xFFFFFFFF` token). Because a magic-less legacy stream
+/// has no second anchor for that leading length, the legacy walk is additionally
+/// gated: every message's metadata→body padding must be all zero and the
+/// end-of-stream marker must be the **exact** end of the source. A random
+/// `0xFFFFFFFF`-prefixed blob, a truncated stream, a re-aligned/mixed blob, and a
+/// stream whose first message is not a `Schema` all decline.
 ///
 /// It never decodes a buffer.
 pub fn detect(source: &[u8], limits: Limits) -> bool {
@@ -1392,25 +1428,38 @@ pub fn detect(source: &[u8], limits: Limits) -> bool {
         }
         // No trailing magic: the historical magic+padding-prefixed stream form; the
         // encapsulated messages begin at the 8-byte prefix.
-        return stream_sequence_ok(source, 8, limits);
+        return stream_sequence_ok(source, 8, Framing::Continuation, limits);
     }
     // Not the file magic: a **bare (magic-less) IPC stream** whose encapsulated
-    // messages begin at offset 0.
-    stream_sequence_ok(source, 0, limits)
+    // messages begin at offset 0. The modern continuation framing is tried first; the
+    // legacy pre-0.15 no-continuation framing (a bare `int32` metadata length) is
+    // tried only if it does not match, and is gated by a strict conservative walk.
+    if stream_sequence_ok(source, 0, Framing::Continuation, limits) {
+        return true;
+    }
+    stream_sequence_ok(source, 0, Framing::Legacy, limits)
 }
 
 /// True iff `source[start..]` is a coherent encapsulated-message sequence: a
-/// continuation-marked framing `Schema` message first (parsed under the bounded
-/// reader), then well-formed known messages, ending in an end-of-stream marker.
+/// `Schema` message first (parsed under the bounded reader), then well-formed known
+/// messages, ending in an end-of-stream marker.
 ///
 /// This is the strong, conservative gate for the stream format: it requires both
 /// a valid leading `Schema` and a coherent end-of-stream, so a random
 /// `0xFFFFFFFF`-prefixed blob, a truncated stream, or a non-`Schema` first
 /// message all decline.
-fn stream_sequence_ok(source: &[u8], start: usize, limits: Limits) -> bool {
+///
+/// The [`Framing::Legacy`] (pre-0.15 no-continuation) form is additionally gated: a
+/// magic-less legacy stream has no second anchor for its leading `int32` length, so
+/// the walk also requires (a) the padding between every message's metadata and its
+/// body to be **all zero**, and (b) the end-of-stream marker to be the **exact** end
+/// of the source. Those two constraints reject a re-aligned/mixed blob that merely
+/// happens to carry a plausible length (the recorded near-miss), so the legacy claim
+/// stays conservative.
+fn stream_sequence_ok(source: &[u8], start: usize, framing: Framing, limits: Limits) -> bool {
     let n = source.len();
     // The first message must be the framing `Schema`, and its metadata must parse.
-    let first = match parse_msg(source, start, limits) {
+    let first = match read_msg(source, start, framing, limits) {
         Ok(m) => m,
         Err(_) => return false,
     };
@@ -1429,30 +1478,47 @@ fn stream_sequence_ok(source: &[u8], start: usize, limits: Limits) -> bool {
     let mut pos = start;
     let mut budget = limits.max_arrow_messages as u64;
     loop {
-        if pos.checked_add(8).map(|e| e > n).unwrap_or(true) {
+        let prefix = match framing {
+            Framing::Continuation => 8usize,
+            Framing::Legacy => 4usize,
+        };
+        if pos.checked_add(prefix).map(|e| e > n).unwrap_or(true) {
             // Ran out of bytes without an end-of-stream marker.
             return false;
         }
-        let cont = u32::from_le_bytes([
-            source[pos],
-            source[pos + 1],
-            source[pos + 2],
-            source[pos + 3],
-        ]);
-        let mlen = u32::from_le_bytes([
-            source[pos + 4],
-            source[pos + 5],
-            source[pos + 6],
-            source[pos + 7],
-        ]);
-        if cont == CONTINUATION && mlen == 0 {
-            // A coherent end-of-stream marker terminates the sequence.
-            return true;
+        if framing == Framing::Continuation {
+            let cont = u32::from_le_bytes([
+                source[pos],
+                source[pos + 1],
+                source[pos + 2],
+                source[pos + 3],
+            ]);
+            let mlen = u32::from_le_bytes([
+                source[pos + 4],
+                source[pos + 5],
+                source[pos + 6],
+                source[pos + 7],
+            ]);
+            if cont == CONTINUATION && mlen == 0 {
+                // A coherent end-of-stream marker terminates the sequence.
+                return true;
+            }
+            if cont != CONTINUATION {
+                return false;
+            }
+        } else {
+            let mlen = u32::from_le_bytes([
+                source[pos],
+                source[pos + 1],
+                source[pos + 2],
+                source[pos + 3],
+            ]);
+            if mlen == 0 {
+                // The legacy end-of-stream marker must be the exact end of the source.
+                return pos + 4 == n;
+            }
         }
-        if cont != CONTINUATION {
-            return false;
-        }
-        let msg = match parse_msg(source, pos, limits) {
+        let msg = match read_msg(source, pos, framing, limits) {
             Ok(m) => m,
             Err(_) => return false,
         };
@@ -1470,6 +1536,13 @@ fn stream_sequence_ok(source: &[u8], start: usize, limits: Limits) -> bool {
             Ok(o) => o,
             Err(_) => return false,
         };
+        if framing == Framing::Legacy {
+            // The metadata→body padding must be all zero (a weak but cheap anchor).
+            let meta_end = msg.meta_start + msg.meta_len;
+            if meta_end > body_off || source[meta_end..body_off].iter().any(|&b| b != 0) {
+                return false;
+            }
+        }
         let body_len = match usize::try_from(msg.body_len) {
             Ok(l) => l,
             Err(_) => return false,
@@ -1503,13 +1576,17 @@ pub fn parse(source: &[u8], limits: Limits) -> Result<ArrowModel> {
         if let Some(footer_start) = file_footer_start(source, limits)? {
             return parse_file(source, footer_start, limits);
         }
-        return parse_stream(source, 8, limits);
+        return parse_stream(source, 8, Framing::Continuation, limits);
     }
     // A bare (magic-less) IPC stream: the encapsulated messages begin at offset 0.
     if source.len() >= 4
         && u32::from_le_bytes([source[0], source[1], source[2], source[3]]) == CONTINUATION
     {
-        return parse_stream(source, 0, limits);
+        return parse_stream(source, 0, Framing::Continuation, limits);
+    }
+    // The legacy pre-0.15 no-continuation framing (a bare `int32` metadata length).
+    if source.len() >= 4 {
+        return parse_stream(source, 0, Framing::Legacy, limits);
     }
     Err(corrupt("missing ARROW1 magic prefix"))
 }
@@ -1562,8 +1639,8 @@ fn parse_file(source: &[u8], footer_start: usize, limits: Limits) -> Result<Arro
 enum FileBatchSource {
     /// The footer root table, whose `recordBatches` (field 3) lists the blocks.
     Footer(u32),
-    /// No footer (stream format): messages are walked from `start`.
-    Stream(usize),
+    /// No footer (stream format): messages are walked from `start` under `framing`.
+    Stream { start: usize, framing: Framing },
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -1642,43 +1719,59 @@ fn finish_model(
                 }
             }
         }
-        FileBatchSource::Stream(start) => {
+        FileBatchSource::Stream { start, framing } => {
+            let prefix = match framing {
+                Framing::Continuation => 8usize,
+                Framing::Legacy => 4usize,
+            };
             let mut pos = start;
             loop {
-                if pos.checked_add(8).map(|e| e > n).unwrap_or(true) {
+                if pos.checked_add(prefix).map(|e| e > n).unwrap_or(true) {
                     break;
                 }
-                let cont = u32::from_le_bytes([
-                    source[pos],
-                    source[pos + 1],
-                    source[pos + 2],
-                    source[pos + 3],
-                ]);
-                let mlen = u32::from_le_bytes([
-                    source[pos + 4],
-                    source[pos + 5],
-                    source[pos + 6],
-                    source[pos + 7],
-                ]);
-                if cont == CONTINUATION && mlen == 0 {
-                    // End-of-stream marker: the 8-byte prefix alone, no metadata/body.
+                let eos = match framing {
+                    Framing::Continuation => {
+                        let cont = u32::from_le_bytes([
+                            source[pos],
+                            source[pos + 1],
+                            source[pos + 2],
+                            source[pos + 3],
+                        ]);
+                        let mlen = u32::from_le_bytes([
+                            source[pos + 4],
+                            source[pos + 5],
+                            source[pos + 6],
+                            source[pos + 7],
+                        ]);
+                        if cont != CONTINUATION {
+                            return Err(corrupt("missing stream continuation marker"));
+                        }
+                        mlen == 0
+                    }
+                    Framing::Legacy => {
+                        let mlen = u32::from_le_bytes([
+                            source[pos],
+                            source[pos + 1],
+                            source[pos + 2],
+                            source[pos + 3],
+                        ]);
+                        mlen == 0
+                    }
+                };
+                if eos {
+                    // End-of-stream marker: the framing prefix alone, no metadata/body.
                     messages.push(MessageDesc {
                         kind: M_END_OF_STREAM,
                         offset: pos as u64,
                         meta_len: 0,
-                        body_offset: (pos + 8) as u64,
+                        body_offset: (pos + prefix) as u64,
                         body_len: 0,
                         span_start: pos as u64,
-                        span_end: (pos + 8) as u64,
+                        span_end: (pos + prefix) as u64,
                     });
                     break;
                 }
-                if cont != CONTINUATION {
-                    // Only the continuation framing is modelled; the legacy
-                    // no-continuation framing is declined (see `detect`).
-                    return Err(corrupt("missing stream continuation marker"));
-                }
-                let msg = parse_msg(source, pos, limits)?;
+                let msg = read_msg(source, pos, framing, limits)?;
                 let kind = match msg.header_type {
                     H_SCHEMA => M_SCHEMA,
                     H_RECORD_BATCH => {
@@ -1743,9 +1836,14 @@ fn finish_model(
     })
 }
 
-fn parse_stream(source: &[u8], start: usize, limits: Limits) -> Result<ArrowModel> {
+fn parse_stream(
+    source: &[u8],
+    start: usize,
+    framing: Framing,
+    limits: Limits,
+) -> Result<ArrowModel> {
     // The first message must be the framing schema.
-    let msg = parse_msg(source, start, limits)?;
+    let msg = read_msg(source, start, framing, limits)?;
     if msg.header_type != H_SCHEMA {
         return Err(corrupt("stream does not begin with a schema message"));
     }
@@ -1762,7 +1860,7 @@ fn parse_stream(source: &[u8], start: usize, limits: Limits) -> Result<ArrowMode
         endianness,
         true,
         schema,
-        FileBatchSource::Stream(start),
+        FileBatchSource::Stream { start, framing },
         &msg.fb,
     )
 }
@@ -2002,8 +2100,34 @@ struct RecordBatchMeta {
     compression: i32,
 }
 
+/// Infer the framing of the message at `offset` from its 4-byte prefix: the modern
+/// continuation token (`0xFFFFFFFF`) means [`Framing::Continuation`]; anything else is
+/// the legacy pre-0.15 no-continuation framing. This lets the model-derived decode
+/// path (which stores only the message offset) read both framings without a wire
+/// change. The `0xFFFFFFFF` word is never a plausible legacy metadata length (it
+/// exceeds the metadata cap), so the inference is unambiguous.
+fn framing_at(source: &[u8], offset: usize) -> Framing {
+    if offset + 4 <= source.len()
+        && u32::from_le_bytes([
+            source[offset],
+            source[offset + 1],
+            source[offset + 2],
+            source[offset + 3],
+        ]) == CONTINUATION
+    {
+        Framing::Continuation
+    } else {
+        Framing::Legacy
+    }
+}
+
 fn read_batch_meta(source: &[u8], desc: &BatchDesc, limits: Limits) -> Result<RecordBatchMeta> {
-    let msg = parse_msg(source, desc.offset as usize, limits)?;
+    let msg = read_msg(
+        source,
+        desc.offset as usize,
+        framing_at(source, desc.offset as usize),
+        limits,
+    )?;
     if msg.header_type != H_RECORD_BATCH {
         return Err(corrupt("message is not a record batch"));
     }

@@ -465,6 +465,87 @@ fn stream_near_misses_decline_to_opaque() {
     assert!(parse(STREAM, Limits::DEFAULT).is_ok());
 }
 
+/// Re-frame a modern (continuation-marked) stream into the legacy pre-0.15
+/// no-continuation framing: each message becomes `int32 metadata_length`, the
+/// metadata, zero padding to an 8-byte boundary, then the body; the stream ends in a
+/// bare 4-byte zero length.
+fn legacy_stream_from_modern(modern: &[u8]) -> Vec<u8> {
+    let model = parse(modern, Limits::DEFAULT).unwrap();
+    let mut out: Vec<u8> = Vec::new();
+    for msg in model.messages.iter().filter(|m| m.kind != M_END_OF_STREAM) {
+        let mstart = msg.offset as usize + 8;
+        let meta = &modern[mstart..mstart + msg.meta_len as usize];
+        out.extend_from_slice(&(msg.meta_len as u32).to_le_bytes());
+        out.extend_from_slice(meta);
+        while !out.len().is_multiple_of(8) {
+            out.push(0);
+        }
+        let bstart = msg.body_offset as usize;
+        out.extend_from_slice(&modern[bstart..bstart + msg.body_len as usize]);
+    }
+    out.extend_from_slice(&0u32.to_le_bytes());
+    out
+}
+
+#[test]
+fn legacy_stream_framing_is_detected_and_built() {
+    // Phase 30.5: the legacy pre-0.15 no-continuation framing is claimed by its own
+    // conservative walk (zero metadata→body padding and an exact 4-byte end marker).
+    let legacy = legacy_stream_from_modern(STREAM);
+    assert_eq!(
+        detect_document_format(&legacy, Limits::DEFAULT),
+        DocumentFormat::ArrowIpc
+    );
+    let model = parse(&legacy, Limits::DEFAULT).unwrap();
+    assert!(model.stream);
+    let kinds: Vec<i32> = model.messages.iter().map(|m| m.kind).collect();
+    assert_eq!(
+        kinds,
+        [M_SCHEMA, M_RECORD_BATCH, M_RECORD_BATCH, M_END_OF_STREAM]
+    );
+    // The message inventory is contiguous and the end marker is the exact 4-byte end.
+    let mut prev = 0u64;
+    for m in &model.messages {
+        assert_eq!(m.span_start, prev, "messages must be contiguous");
+        assert!(m.span_end > m.span_start);
+        prev = m.span_end;
+    }
+    assert_eq!(prev, legacy.len() as u64, "messages must cover the source");
+    let eos = model.messages.last().unwrap();
+    assert_eq!(eos.kind, M_END_OF_STREAM);
+    assert_eq!(eos.span_end - eos.span_start, 4);
+    // The columns decode identically to the modern stream.
+    assert_eq!(column_text(&legacy, 0), ["1", "2", "3", "4", "5"]);
+    assert_eq!(column_text(&legacy, 1), ["x", "null", "z", "p", "q"]);
+}
+
+#[test]
+fn legacy_stream_near_misses_decline() {
+    // A legacy-framed schema followed by modern (continuation) messages is not a
+    // coherent legacy stream: its first message's metadata→body region is not the
+    // exact end, so it declines.
+    let model = parse(STREAM, Limits::DEFAULT).unwrap();
+    let meta_len = model.messages[0].meta_len as u32;
+    let mut mixed = Vec::new();
+    mixed.extend_from_slice(&meta_len.to_le_bytes());
+    mixed.extend_from_slice(&STREAM[8..model.messages[0].span_end as usize]);
+    mixed.extend_from_slice(&STREAM[model.messages[0].span_end as usize..]);
+    assert_eq!(
+        detect_document_format(&mixed, Limits::DEFAULT),
+        DocumentFormat::Opaque
+    );
+    // A plausible 4-byte length whose payload is not a parseable Schema message (a
+    // truncated/garbage metadata region) declines.
+    let mut junk = Vec::new();
+    junk.extend_from_slice(&64u32.to_le_bytes());
+    junk.extend_from_slice(&[0u8; 64]);
+    junk.extend_from_slice(&0u32.to_le_bytes());
+    assert_eq!(
+        detect_document_format(&junk, Limits::DEFAULT),
+        DocumentFormat::Opaque
+    );
+}
+
 #[test]
 fn native_and_common_selectors_resolve() {
     let mut fx = Fixture::new("selectors", PRIMITIVES);

@@ -80,6 +80,8 @@ const NOTES_BYTES: &[u8] = b"P\xF6ints";
 /// The decoded form of `NOTES_BYTES` under CP1252.
 const NOTES_BYTES_DECODED: &str = "Pöints";
 const HANDOUT_TEXT: &str = "Handout footer";
+/// A non-conformant `other` list (`recInstance` 4, which MS-PPT does not define).
+const OTHER_TEXT: &str = "Other list text";
 
 fn utf16le(name: &str) -> Vec<u8> {
     let mut out = Vec::new();
@@ -538,6 +540,31 @@ fn lists_document() -> Vec<u8> {
         REC_SLIDE_LIST_WITH_TEXT,
         &slwt,
     );
+    // other list (recInstance 4): a non-conformant instance, materialized losslessly
+    // and addressable as `other:4`.
+    let mut slwt: Vec<u8> = Vec::new();
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_SLIDE_PERSIST_ATOM,
+        &slide_persist_atom(6, 1),
+    );
+    rec(&mut slwt, 0, 0, REC_TEXT_HEADER_ATOM, &[0u8; 4]);
+    rec(
+        &mut slwt,
+        0,
+        0,
+        REC_TEXT_CHARS_ATOM,
+        &utf16_units(OTHER_TEXT),
+    );
+    rec(
+        &mut doc,
+        REC_VER_CONTAINER,
+        4,
+        REC_SLIDE_LIST_WITH_TEXT,
+        &slwt,
+    );
     rec(&mut doc, 0, 0, REC_END_DOCUMENT, &[]);
 
     let mut stream: Vec<u8> = Vec::new();
@@ -976,7 +1003,7 @@ fn lists_are_materialized_as_typed_answers() {
         Selector::Metadata,
         Representation::Metadata,
     ));
-    assert!(meta.contains("\"lists\":4"), "{meta}");
+    assert!(meta.contains("\"lists\":5"), "{meta}");
     // The slides-list projection is unchanged by the wider model.
     assert!(meta.contains("\"slides\":2"), "{meta}");
     assert!(meta.contains("\"runs\":2"), "{meta}");
@@ -1057,6 +1084,26 @@ fn lists_are_materialized_as_typed_answers() {
     assert!(handout.contains("\"rec_instance\":3"), "{handout}");
     assert!(handout.contains("\"persist_id_ref\":5"), "{handout}");
 
+    // The non-conformant `other:4` list is named unambiguously and selectable.
+    let other = answer_json(&observe_ok(
+        &mut fx.store,
+        &field,
+        Selector::PptList { instance: 4 },
+        Representation::Metadata,
+    ));
+    assert!(other.contains("\"list\":\"other:4\""), "{other}");
+    assert!(other.contains("\"rec_instance\":4"), "{other}");
+    assert!(other.contains("\"persist_id_ref\":6"), "{other}");
+    assert_eq!(
+        answer_text(&observe_ok(
+            &mut fx.store,
+            &field,
+            Selector::PptList { instance: 4 },
+            Representation::Text,
+        )),
+        OTHER_TEXT
+    );
+
     // An **absent** list is a typed empty answer, never an error.
     let plain = build_valid();
     let mut px = Fixture::new("lists-absent", &plain);
@@ -1091,9 +1138,9 @@ fn list_runs_preserve_exact_spans_and_order() {
     let src = build_lists();
     let model = vole_document::adapter::ppt::parse(&src, Limits::DEFAULT).unwrap();
 
-    // All four lists are modeled, in record order.
+    // All lists are modeled, in record order (including the non-conformant `other:4`).
     let instances: Vec<u16> = model.lists.iter().map(|l| l.instance).collect();
-    assert_eq!(instances, vec![0, 1, 2, 3]);
+    assert_eq!(instances, vec![0, 1, 2, 3, 4]);
     // The container spans are in stream order and enclose their children.
     for w in model.lists.windows(2) {
         assert!(w[0].span.1 <= w[1].span.0, "list spans are ordered");
